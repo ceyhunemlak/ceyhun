@@ -433,10 +433,61 @@
   align-items: center;
 }
 
-.swiper-slide:hover {
-  z-index: 2;
-  transform: scale(1.02);
-  transition: transform 0.3s ease;
+/* Make hover effects only work on devices that support hover */
+@media (hover: hover) {
+  .swiper-slide:hover {
+    z-index: 2;
+    transform: scale(1.02);
+    transition: transform 0.3s ease;
+  }
+
+  .listing-card:hover {
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+    border-color: rgba(0, 0, 0, 0.1);
+    border-radius: 12px; /* Explicitly maintain rounded corners on hover */
+  }
+
+  .listing-card:hover .absolute.top-4 {
+    transform: translateY(-2px);
+  }
+
+  .listing-card:hover h3 {
+    color: var(--primary);
+  }
+
+  .category-card:hover {
+    border-radius: 16px; /* Maintain rounded corners on hover */
+  }
+
+  .listing-card:hover::before,
+  .category-card:hover::before {
+    background: transparent;
+  }
+
+  /* Group hover effects for image galleries */
+  .group:hover .group-hover\:scale-110 {
+    transform: scale(1.1);
+  }
+
+  .group:hover .group-hover\:opacity-100 {
+    opacity: 1;
+  }
+
+  .group:hover .group-hover\:-translate-y-1 {
+    transform: translateY(-2px);
+  }
+}
+
+/* Always show navigation elements on mobile without hover */
+@media (hover: none) {
+  .group .group-hover\:opacity-100 {
+    opacity: 1;
+  }
+  
+  /* Show image counter on mobile without requiring hover */
+  .opacity-0.group-hover\:opacity-100 {
+    opacity: 1;
+  }
 }
 
 .listing-card {
@@ -450,26 +501,12 @@
   z-index: 1;
 }
 
-.listing-card:hover {
-  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
-  border-color: rgba(0, 0, 0, 0.1);
-  border-radius: 12px; /* Explicitly maintain rounded corners on hover */
-}
-
 .listing-card .absolute.top-4 {
   transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
-.listing-card:hover .absolute.top-4 {
-  transform: translateY(-2px);
-}
-
 .listing-card h3 {
   transition: color 0.3s ease;
-}
-
-.listing-card:hover h3 {
-  color: var(--primary);
 }
 
 /* Fix for category cards */
@@ -479,10 +516,6 @@
   transition: all 0.5s ease;
   position: relative;
   z-index: 1;
-}
-
-.category-card:hover {
-  border-radius: 16px; /* Maintain rounded corners on hover */
 }
 
 /* Ensure image containers maintain rounded corners with overflow */
@@ -508,16 +541,25 @@
   z-index: 2;
 }
 
-.listing-card:hover::before,
-.category-card:hover::before {
-  background: transparent;
-}
-
 /* Fix for mobile viewport height */
 @media screen and (max-width: 768px) {
   .vh-fix {
     height: calc(var(--vh, 1vh) * 100);
-}
+  }
+
+  /* Improved handling of long titles and text */
+  h1, h2, h3 {
+    word-break: break-word;
+    hyphens: auto;
+    overflow-wrap: break-word;
+  }
+
+  /* Listing detail title specific fixes */
+  .listing-title {
+    font-size: 1.25rem !important;
+    line-height: 1.4 !important;
+    letter-spacing: -0.01em;
+  }
 
   /* Make filter area more compact on mobile */
   .filter-area {

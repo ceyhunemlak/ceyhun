@@ -4,10 +4,13 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Search, Menu, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 const Header = () => {
+  const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Handle scroll event to change header style when scrolled
   useEffect(() => {
@@ -35,9 +38,24 @@ const Header = () => {
     };
   }, [isMenuOpen]);
 
+  // Handle search form submission
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (searchQuery.trim()) {
+      // Redirect to the all listings page with search query
+      router.push(`/ilanlar?search=${encodeURIComponent(searchQuery)}`);
+      
+      // Close mobile menu if open
+      if (isMenuOpen) {
+        setIsMenuOpen(false);
+      }
+    }
+  };
+
   return (
     <header 
-      className={`fixed w-full z-50 bg-white py-2 sm:py-4 transition-all duration-300 ${
+      className={`fixed w-full z-50 bg-white py-2 sm:py-5 transition-all duration-300 ${
         isScrolled ? "shadow-md" : ""
       }`}
     >
@@ -71,14 +89,22 @@ const Header = () => {
         
         {/* Search button - Right Side */}
         <div className="hidden md:flex items-center">
-          <div className="relative">
+          <form onSubmit={handleSearch} className="relative">
             <input
               type="text"
               placeholder="İlan Ara..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 pr-4 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all bg-white text-base"
             />
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
-          </div>
+            <button 
+              type="submit" 
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+              aria-label="Ara"
+            >
+              <Search size={18} />
+            </button>
+          </form>
         </div>
         
         {/* Mobile menu button */}
@@ -129,14 +155,22 @@ const Header = () => {
             >
               Vasıta
             </Link>
-            <div className="relative mt-4">
+            <form onSubmit={handleSearch} className="relative mt-4">
               <input
                 type="text"
                 placeholder="İlan Ara..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 border rounded-full focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all bg-white text-base"
               />
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
-            </div>
+              <button 
+                type="submit" 
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+                aria-label="Ara"
+              >
+                <Search size={18} />
+              </button>
+            </form>
           </div>
         </div>
       )}

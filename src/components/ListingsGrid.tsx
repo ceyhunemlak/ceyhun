@@ -3,11 +3,13 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { MapPin, Bed, Square, Car, ArrowRight } from "lucide-react";
+import { MapPin, Bed, Expand, Car, ArrowRight, Calendar } from "lucide-react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Navigation, Pagination } from "swiper/modules";
 import 'swiper/css';
 import 'swiper/css/pagination';
+import { Loading } from "@/components/ui/loading";
+import { createSlug } from "@/lib/utils";
 
 // Define listing type
 interface Listing {
@@ -24,7 +26,10 @@ interface Listing {
   rooms?: string;
   area?: number;
   model?: string;
+  brand?: string;
   year?: number;
+  subcategory?: string; // Added subcategory field
+  addresses?: Address[]; // Add addresses field
 }
 
 // Define address type
@@ -40,15 +45,18 @@ interface KonutDetails {
   room_count: string;
   gross_sqm: number;
   net_sqm: number;
+  konut_type?: string;
 }
 
 interface TicariDetails {
   room_count: number;
   gross_sqm: number;
+  ticari_type?: string;
 }
 
 interface ArsaDetails {
   sqm: number;
+  arsa_type?: string;
 }
 
 interface VasitaDetails {
@@ -90,7 +98,14 @@ const ListingsGrid = () => {
               // Extract location from addresses if available
               if (detailData.addresses && detailData.addresses.length > 0) {
                 const address = detailData.addresses[0] as Address;
-                enhancedListing.location = `${address.district}, ${address.province}`;
+                // Capitalize first letter of each part
+                const province = address.province.charAt(0).toUpperCase() + address.province.slice(1);
+                const district = address.district.charAt(0).toUpperCase() + address.district.slice(1);
+                const neighborhood = address.neighborhood 
+                  ? '/' + (address.neighborhood.charAt(0).toUpperCase() + address.neighborhood.slice(1)) 
+                  : '';
+                enhancedListing.location = `${province}/${district}${neighborhood}`;
+                enhancedListing.addresses = detailData.addresses;
               }
               
               // Extract property-specific details
@@ -98,17 +113,25 @@ const ListingsGrid = () => {
                 const konutDetails = detailData.konut_details[0] as KonutDetails;
                 enhancedListing.rooms = konutDetails.room_count;
                 enhancedListing.area = konutDetails.gross_sqm;
+                enhancedListing.subcategory = konutDetails.konut_type || 'Daire';
               } else if (listing.property_type === 'ticari' && detailData.ticari_details) {
                 const ticariDetails = detailData.ticari_details[0] as TicariDetails;
                 enhancedListing.rooms = ticariDetails.room_count.toString();
                 enhancedListing.area = ticariDetails.gross_sqm;
+                enhancedListing.subcategory = ticariDetails.ticari_type || 'Ofis';
               } else if (listing.property_type === 'arsa' && detailData.arsa_details) {
                 const arsaDetails = detailData.arsa_details[0] as ArsaDetails;
                 enhancedListing.area = arsaDetails.sqm;
+                enhancedListing.subcategory = arsaDetails.arsa_type || 'Arsa';
               } else if (listing.property_type === 'vasita' && detailData.vasita_details) {
                 const vasitaDetails = detailData.vasita_details[0] as VasitaDetails;
-                enhancedListing.model = `${vasitaDetails.brand} ${vasitaDetails.model}`;
-                enhancedListing.year = parseInt(vasitaDetails.year as unknown as string);
+                enhancedListing.subcategory = vasitaDetails.brand || 'Otomobil';
+                enhancedListing.brand = vasitaDetails.brand;
+                enhancedListing.model = vasitaDetails.model;
+                
+                // Handle year data safely
+                const parsedYear = parseInt(vasitaDetails.year as unknown as string);
+                enhancedListing.year = !isNaN(parsedYear) ? parsedYear : undefined;
               }
               
               return enhancedListing;
@@ -153,6 +176,28 @@ const ListingsGrid = () => {
     return new Intl.NumberFormat('tr-TR').format(price) + ' ₺';
   };
 
+  // Helper function to get subcategory with first letter capitalized
+  const getSubcategory = (listing: Listing) => {
+    let subcategory = '';
+    
+    if (listing.subcategory) {
+      subcategory = listing.subcategory;
+    } else {
+      // Fallback subcategories if not available
+      const fallbackMap: Record<string, string> = {
+        'konut': 'Daire',
+        'ticari': 'İş Yeri',
+        'arsa': 'Arsa',
+        'vasita': 'Otomobil'
+      };
+      
+      subcategory = fallbackMap[listing.property_type] || listing.property_type;
+    }
+    
+    // Ensure first letter is capitalized
+    return subcategory.charAt(0).toUpperCase() + subcategory.slice(1);
+  };
+
   return (
     <div className="w-full">
       <div className="container mx-auto px-6 md:px-8 lg:px-12">
@@ -167,8 +212,8 @@ const ListingsGrid = () => {
         </div>
         
         {isLoading ? (
-          <div className="flex justify-center items-center py-20">
-            <p className="text-lg text-gray-500">Yükleniyor...</p>
+          <div className="py-20">
+            <Loading size="large" text="Yükleniyor..." />
           </div>
         ) : error ? (
           <div className="flex justify-center items-center py-20">
@@ -214,51 +259,46 @@ const ListingsGrid = () => {
             >
               {featuredListings.map((listing) => (
                 <SwiperSlide key={listing.id} className="!h-auto !flex !flex-col">
-                  <Link href={`/ilan/${listing.id}`} className="block w-full h-full">
+                  <Link href={`/ilan/${createSlug(listing.title)}`} className="block w-full h-full">
                     <div className="listing-card bg-white overflow-hidden transition-all duration-500 h-full flex flex-col rounded-2xl card-hover">
                       {/* Image container */}
                       <div className="relative h-64 w-full overflow-hidden flex-shrink-0 group rounded-t-2xl transform-gpu">
                         <Image
                           src={listing.thumbnail_url || "/images/ce.png"}
                           alt={listing.title}
-                          className="object-cover transition-transform duration-700 group-hover:scale-110"
+                          className="object-cover transition-transform duration-700 md:group-hover:scale-110"
                           fill
                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
                         />
                         
-                        {/* Type tag (top left) */}
-                        <div className="absolute top-4 left-4 bg-primary text-white text-sm font-medium px-4 py-1.5 rounded-full shadow-md z-10 transition-transform duration-300 group-hover:-translate-y-1">
-                          {formatListingStatus(listing.listing_status)}
-                        </div>
-                        
-                        {/* Category tag (top right) */}
-                        <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm text-gray-800 text-sm font-medium px-4 py-1.5 rounded-full shadow-md z-10 transition-transform duration-300 group-hover:-translate-y-1">
-                          {formatPropertyType(listing.property_type)}
-                        </div>
-                        
-                        {/* Featured badge */}
-                        <div className="absolute top-16 left-0 bg-black/80 text-primary text-xs font-bold px-4 py-1 rounded-r-full shadow-md z-10">
-                          ÖNE ÇIKAN
+                        {/* Type tag (top left) and Category tag (next to it) */}
+                        <div className="absolute top-4 left-4 flex gap-2">
+                          <div className="bg-primary text-white text-sm font-medium px-4 py-1.5 rounded-full shadow-md z-10 transition-transform duration-300 md:group-hover:-translate-y-1">
+                            {formatListingStatus(listing.listing_status)}
+                          </div>
+                          <div className="bg-white/90 backdrop-blur-sm text-gray-800 text-sm font-medium px-4 py-1.5 rounded-full shadow-md z-10 transition-transform duration-300 md:group-hover:-translate-y-1">
+                            {getSubcategory(listing)}
+                          </div>
                         </div>
                         
                         {/* Price tag */}
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-4">
-                          <div className="w-full bg-gray-800/60 px-6 py-2 rounded-lg">
-                            <p className="text-white text-xl font-bold">{formatPrice(listing.price)}</p>
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-3">
+                          <div className="w-full bg-gray-900/30 backdrop-blur-sm px-4 py-1.5 rounded-lg">
+                            <p className="text-white text-base md:text-lg font-bold">{formatPrice(listing.price)}</p>
                           </div>
                         </div>
                       </div>
                       
                       {/* Content container - flex grow to fill remaining space */}
-                      <div className="flex flex-col flex-grow p-5">
+                      <div className="flex flex-col flex-grow p-4">
                         {/* Listing title and location */}
                         <div className="flex-grow">
-                          <h3 className="font-headings text-lg md:text-xl font-semibold line-clamp-2 mb-2 text-left group-hover:text-primary transition-colors duration-300">{listing.title}</h3>
+                          <h3 className="font-headings text-base md:text-lg font-semibold line-clamp-2 mb-1.5 text-left md:group-hover:text-primary transition-colors duration-300 break-words hyphens-auto">{listing.title}</h3>
                           
                           {listing.location && (
-                            <div className="flex items-center text-muted-foreground text-sm mb-4 text-left">
-                              <MapPin size={15} className="mr-1.5 flex-shrink-0 text-primary" />
-                              <span className="truncate">{listing.location}</span>
+                            <div className="flex items-start text-muted-foreground text-xs mb-3 text-left">
+                              <MapPin size={14} className="mr-1 flex-shrink-0 text-primary mt-0.5" />
+                              <span className="truncate break-words">{listing.location}</span>
                             </div>
                           )}
                         </div>
@@ -275,7 +315,7 @@ const ListingsGrid = () => {
                             
                             {listing.area && (
                               <div className="flex items-center">
-                                <Square size={15} className="mr-1.5 flex-shrink-0 text-gray-500" />
+                                <Expand size={15} className="mr-1.5 flex-shrink-0 text-gray-500" />
                                 <span>{listing.area} m²</span>
                               </div>
                             )}
@@ -283,12 +323,13 @@ const ListingsGrid = () => {
                             {listing.model && (
                               <div className="flex items-center">
                                 <Car size={15} className="mr-1.5 flex-shrink-0 text-gray-500" />
-                                <span>{listing.model}</span>
+                                <span>{listing.brand && listing.model ? `${listing.brand} ${listing.model}` : listing.model}</span>
                               </div>
                             )}
                             
-                            {listing.year && (
+                            {listing.year && !isNaN(Number(listing.year)) && (
                               <div className="flex items-center">
+                                <Calendar size={15} className="mr-1.5 flex-shrink-0 text-gray-500" />
                                 <span>{listing.year}</span>
                               </div>
                             )}

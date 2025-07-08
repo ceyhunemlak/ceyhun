@@ -8,8 +8,23 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, HomeIcon, Building2, Car, MapPin, ArrowRight, Map } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import neighborhoodsByDistrict from "@/lib/neighborhoods";
+
+// Define the neighborhood type
+interface Neighborhood {
+  value: string;
+  label: string;
+}
+
+// Define the district data structure
+interface DistrictData {
+  mahalle: Neighborhood[];
+  koy: Neighborhood[];
+}
 
 const FilterArea = () => {
+  const router = useRouter();
   const [konutType, setKonutType] = useState("all");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
@@ -19,234 +34,74 @@ const FilterArea = () => {
   const [saleStatus, setSaleStatus] = useState("sale");
   const [selectedDistrict, setSelectedDistrict] = useState("");
   const [selectedNeighborhood, setSelectedNeighborhood] = useState("");
+  const [activeTab, setActiveTab] = useState("konut");
   
-  // Neighborhoods by district data from admin panel
-  const neighborhoodsByDistrict: Record<string, Array<{ value: string; label: string }>> = {
-    merkez: [
-      { value: "akdegirmen", label: "AKDEĞİRMEN" },
-      { value: "alipasa", label: "ALİPAŞA" },
-      { value: "altiyuzevler", label: "ALTIYÜZEVLER" },
-      { value: "bahcelievler", label: "BAHÇELİEVLER" },
-      { value: "bedestenlioglu", label: "BEDESTENLİOĞLU" },
-      { value: "buyukbeybagi", label: "BÜYÜKBEYBAĞI" },
-      { value: "camiikebir", label: "CAMİİKEBİR" },
-      { value: "cemalettin", label: "CEMALETTİN" },
-      { value: "cay", label: "ÇAY" },
-      { value: "derbent", label: "DERBENT" },
-      { value: "devegormez", label: "DEVEGÖRMEZ" },
-      { value: "dogancibagları", label: "DOĞANCIBAĞLARI" },
-      { value: "dogukent", label: "DOĞUKENT" },
-      { value: "erenler", label: "ERENLER" },
-      { value: "esentepe", label: "ESENTEPE" },
-      { value: "geyras", label: "GEYRAS" },
-      { value: "gezirlik", label: "GEZİRLİK" },
-      { value: "gulbaharhatun", label: "GÜLBAHARHATUN" },
-      { value: "gunesli", label: "GÜNEŞLİ" },
-      { value: "hocaahmet", label: "HOCAAHMET" },
-      { value: "kabeimescit", label: "KABE-İMESCİT" },
-      { value: "kaleardi", label: "KALEARDI" },
-      { value: "karsiyaka", label: "KARŞIYAKA" },
-      { value: "kasikcibagları", label: "KAŞIKÇIBAĞLARI" },
-      { value: "kemer", label: "KEMER" },
-      { value: "kucukbeybagi", label: "KÜÇÜKBEYBAĞI" },
-      { value: "kumbet", label: "KÜMBET" },
-      { value: "mahmutpasa", label: "MAHMUTPAŞA" },
-      { value: "mehmetpasa", label: "MEHMETPAŞA" },
-      { value: "ogulbey", label: "OĞULBEY" },
-      { value: "ortmelionu", label: "ÖRTMELİÖNÜ" },
-      { value: "perakende", label: "PERAKENDE" },
-      { value: "semerkant", label: "SEMERKANT" },
-      { value: "seyitnecmettin", label: "SEYİTNECMETTİN" },
-      { value: "sogukpinar", label: "SOĞUKPINAR" },
-      { value: "topcam", label: "TOPÇAM" },
-      { value: "topcubagi", label: "TOPÇUBAĞI" },
-      { value: "yarahmet", label: "YARAHMET" },
-      { value: "yeni", label: "YENİ" },
-      { value: "yeniyurt", label: "YENİYURT" },
-      { value: "yesilirmak", label: "YEŞİLIRMAK" },
-      { value: "yesilova", label: "YEŞİLOVA" }
-    ],
-    almus: [
-      { value: "almus-merkez", label: "Almus Merkez" },
-      { value: "armutalan", label: "Armutalan" },
-      { value: "cambulak", label: "Çambulak" },
-      { value: "kuruseki", label: "Kuruseki" },
-      { value: "sagirlar", label: "Sağırlar" },
-      { value: "salkavak", label: "Salkavak" },
-      { value: "yuvakoy", label: "Yuvaköy" }
-    ],
-    artova: [
-      { value: "alpaslan", label: "ALPASLAN" },
-      { value: "altinova", label: "ALTINOVA" },
-      { value: "celikli", label: "ÇELİKLİ" },
-      { value: "gaziosmanpasa", label: "GAZİOSMANPAŞA" },
-      { value: "igdir", label: "İĞDİR" },
-      { value: "istasyon", label: "İSTASYON" },
-      { value: "kizilca", label: "KIZILCA" }
-    ],
-    basciftlik: [
-      { value: "cumhuriyet", label: "CUMHURİYET" },
-      { value: "fatih", label: "FATİH" },
-      { value: "gencosman", label: "GENÇOSMAN" },
-      { value: "karacaoren-alibaba", label: "KARACAÖREN ALİBABA" },
-      { value: "karacaoren-asiroglu", label: "KARACAÖREN AŞIROĞLU" },
-      { value: "karacaoren-gaziosmanpasa", label: "KARACAÖREN GAZİOSMANPAŞA" },
-      { value: "sinanpasa", label: "SİNANPAŞA" }
-    ],
-    erbaa: [
-      { value: "ziya-gokalp", label: "ZİYA GÖKALP" },
-      { value: "yunus-emre", label: "YUNUS EMRE" },
-      { value: "yildirim-beyazit", label: "YILDIRIM BEYAZIT" },
-      { value: "yesilyurt", label: "YEŞİLYURT" },
-      { value: "yeni", label: "YENİ" },
-      { value: "yavuz-sultan-selim", label: "YAVUZ SULTAN SELİM" },
-      { value: "osman-gazi", label: "OSMAN GAZİ" },
-      { value: "mimar-sinan", label: "MİMAR SİNAN" },
-      { value: "mevlana", label: "MEVLANA" },
-      { value: "mehmet-akif", label: "MEHMET AKİF" },
-      { value: "kurucay", label: "KURUÇAY" },
-      { value: "kelkit", label: "KELKİT" },
-      { value: "karsiyaka", label: "KARŞIYAKA" },
-      { value: "ismet-pasa", label: "İSMET PAŞA" },
-      { value: "gundogdu", label: "GÜNDOĞDU" },
-      { value: "gazi-pasa", label: "GAZİ PAŞA" },
-      { value: "gazi-osman-pasa", label: "GAZİ OSMAN PAŞA" },
-      { value: "fevzipasa", label: "FEVZİPAŞA" },
-      { value: "fatih-sultan-mehmet", label: "FATİH SULTAN MEHMET" },
-      { value: "evyaba", label: "EVYABA" },
-      { value: "ertugrulgazi", label: "ERTUĞRULGAZİ" },
-      { value: "erek", label: "EREK" },
-      { value: "cumhuriyet", label: "CUMHURİYET" },
-      { value: "alacabal", label: "ALACABAL" },
-      { value: "ahmet-yesevi", label: "AHMET YESEVİ" }
-    ],
-    niksar: [
-      { value: "cengelli", label: "ÇENGELLİ" },
-      { value: "hamidiye", label: "HAMİDİYE" },
-      { value: "kumciftlik", label: "KUMÇİFTLİK" },
-      { value: "cedit", label: "CEDİT" },
-      { value: "gaziosmanpasa", label: "GAZİOSMANPAŞA" },
-      { value: "haydarbey", label: "HAYDARBEY" },
-      { value: "kultur", label: "KÜLTÜR" },
-      { value: "baglar", label: "BAĞLAR" },
-      { value: "sair-emrah", label: "ŞAİR EMRAH" },
-      { value: "fatih", label: "FATİH" },
-      { value: "kilicarslan", label: "KILIÇARSLAN" },
-      { value: "donekse", label: "DÖNEKSE" },
-      { value: "akpinar", label: "AKPINAR" },
-      { value: "bengiler", label: "BENGİLER" },
-      { value: "gaziahmet", label: "GAZİAHMET" },
-      { value: "ayvaz", label: "AYVAZ" },
-      { value: "ismet-pasa", label: "İSMET PAŞA" },
-      { value: "cepnibey", label: "CEPNİBEY" },
-      { value: "elli-yil", label: "50. YIL" },
-      { value: "kirkkizlar", label: "KIRKKIZLAR" },
-      { value: "bahcelievler", label: "BAHÇELİEVLER" },
-      { value: "melikgazi", label: "MELİKGAZİ" },
-      { value: "yusufshah", label: "YUSUFŞAH" },
-      { value: "aydinlikevler", label: "AYDINLIKEVLER" },
-      { value: "kayapasa", label: "KAYAPAŞA" }
-    ],
-    pazar: [
-      { value: "erkilet", label: "ERKİLET" },
-      { value: "esentepe", label: "ESENTEPE" },
-      { value: "fatih", label: "FATİH" },
-      { value: "gazi-osman-pasa", label: "GAZİ OSMAN PAŞA" },
-      { value: "kazova", label: "KAZOVA" },
-      { value: "mehmet-akif-ersoy", label: "MEHMET AKİF ERSOY" },
-      { value: "merkez", label: "MERKEZ" },
-      { value: "mrs-fevzi-cakmak", label: "MRŞ.FEVZİ ÇAKMAK" },
-      { value: "seyitali", label: "SEYİTALİ" },
-      { value: "sinanpasa", label: "SİNANPAŞA" },
-      { value: "tekke", label: "TEKKE" },
-      { value: "yesildere", label: "YEŞİLDERE" }
-    ],
-    resadiye: [
-      { value: "resadiye-merkez", label: "Reşadiye Merkez" },
-      { value: "baydarli", label: "Baydarlı" },
-      { value: "bereketli", label: "Bereketli" },
-      { value: "bozcali", label: "Bozçalı" }
-    ],
-    sulusaray: [
-      { value: "fatih", label: "FATİH" },
-      { value: "gaziosmanpasa", label: "GAZİOSMANPAŞA" },
-      { value: "malum-seyit-tekke", label: "MALUM SEYİT TEKKE" },
-      { value: "menderes", label: "MENDERES" }
-    ],
-    turhal: [
-      { value: "asarcik", label: "ASARCIK" },
-      { value: "bahar", label: "BAHAR" },
-      { value: "borsa", label: "BORSA" },
-      { value: "boyacilar", label: "BOYACILAR" },
-      { value: "camikebir", label: "CAMİKEBİR" },
-      { value: "celal", label: "CELAL" },
-      { value: "cumhuriyet", label: "CUMHURİYET" },
-      { value: "cevlikler", label: "ÇEVLİKLER" },
-      { value: "emek", label: "EMEK" },
-      { value: "fatih", label: "FATİH" },
-      { value: "gazi-osman-pasa", label: "GAZİ OSMAN PAŞA" },
-      { value: "gundogdu", label: "GÜNDOĞDU" },
-      { value: "gunes", label: "GÜNEŞ" },
-      { value: "gursel", label: "GÜRSEL" },
-      { value: "hacilar", label: "HACILAR" },
-      { value: "hamam", label: "HAMAM" },
-      { value: "karaevli", label: "KARAEVLİ" },
-      { value: "kayacik", label: "KAYACIK" },
-      { value: "kazim-karabekir", label: "KAZIM KARABEKİR" },
-      { value: "kova", label: "KOVA" },
-      { value: "marasal-fevzi-cakmak", label: "MARAŞAL FEVZİ ÇAKMAK" },
-      { value: "mevlana", label: "MEVLANA" },
-      { value: "meydan", label: "MEYDAN" },
-      { value: "mimar-sinan", label: "MİMAR SİNAN" },
-      { value: "muftu", label: "MÜFTÜ" },
-      { value: "nurkavak", label: "NURKAVAK" },
-      { value: "ortakoy", label: "ORTAKÖY" },
-      { value: "osmangazi", label: "OSMANGAZİ" },
-      { value: "pazar", label: "PAZAR" },
-      { value: "ray", label: "RAY" },
-      { value: "ucgozen", label: "ÜÇGÖZEN" },
-      { value: "varvara", label: "VARVARA" },
-      { value: "yavuz-selim", label: "YAVUZ SELİM" },
-      { value: "yesilirmak", label: "YEŞİLIRMAK" },
-      { value: "yunus-emre", label: "YUNUS EMRE" }
-    ],
-    yesilyurt: [
-      { value: "yuz-yil", label: "100. YIL" },
-      { value: "cikrik", label: "ÇIKRIK" },
-      { value: "cirdak", label: "ÇIRDAK" },
-      { value: "gaziosmanpasa", label: "GAZİOSMANPAŞA" },
-      { value: "kuscu", label: "KUŞÇU" },
-      { value: "sehitler", label: "ŞEHİTLER" },
-      { value: "turkmenler", label: "TÜRKMENLER" }
-    ],
-    zile: [
-      { value: "alacamescitzir", label: "ALACAMESCİTZİR" },
-      { value: "alamescirbala", label: "ALAMESCİTBALA" },
-      { value: "alikadi", label: "ALİKADI" },
-      { value: "bahcelievler", label: "BAHÇELİEVLER" },
-      { value: "cedit", label: "CEDİT" },
-      { value: "dincerler", label: "DİNÇERLER" },
-      { value: "dutlupinar", label: "DUTLUPINAR" },
-      { value: "hacimehmet", label: "HACIMEHMET" },
-      { value: "istasyon", label: "İSTASYON" },
-      { value: "kahya", label: "KAHYA" },
-      { value: "kislik", label: "KİSLİK" },
-      { value: "minareikebir", label: "MİNAREİKEBİR" },
-      { value: "minareisagir", label: "MİNAREİSAĞIR" },
-      { value: "nakkas", label: "NAKKAŞ" },
-      { value: "orta", label: "ORTA" },
-      { value: "seyhali", label: "ŞEYHALİ" },
-      { value: "seyhkolu", label: "ŞEYHKOLU" },
-      { value: "yunusemre", label: "YUNUSEMRE" },
-      { value: "zincirli-ulya", label: "ZİNCİRLİ ÜLYA" },
-      { value: "zincirli-sufla", label: "ZİNCİRLİSÜFLA" }
-    ],
+  // Format price with dot separators (123.123)
+  const formatPrice = (value: string): string => {
+    // Remove non-digit characters
+    const digits = value.replace(/\D/g, '');
+    
+    // Format with dot separators
+    if (digits) {
+      return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    }
+    
+    return '';
+  };
+  
+  // Handle price input changes
+  const handleMinPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const cursorPosition = input.selectionStart || 0;
+    const previousValue = minPrice;
+    const formattedValue = formatPrice(input.value);
+    
+    setMinPrice(formattedValue);
+    
+    // Calculate new cursor position
+    setTimeout(() => {
+      // Count dots before cursor in the previous value
+      const previousDots = (previousValue.substring(0, cursorPosition).match(/\./g) || []).length;
+      // Count dots before cursor in the new value
+      const newDots = (formattedValue.substring(0, cursorPosition).match(/\./g) || []).length;
+      // Adjust cursor position based on the difference in dots
+      const newPosition = cursorPosition + (newDots - previousDots);
+      input.setSelectionRange(newPosition, newPosition);
+    }, 0);
+  };
+  
+  const handleMaxPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const cursorPosition = input.selectionStart || 0;
+    const previousValue = maxPrice;
+    const formattedValue = formatPrice(input.value);
+    
+    setMaxPrice(formattedValue);
+    
+    // Calculate new cursor position
+    setTimeout(() => {
+      // Count dots before cursor in the previous value
+      const previousDots = (previousValue.substring(0, cursorPosition).match(/\./g) || []).length;
+      // Count dots before cursor in the new value
+      const newDots = (formattedValue.substring(0, cursorPosition).match(/\./g) || []).length;
+      // Adjust cursor position based on the difference in dots
+      const newPosition = cursorPosition + (newDots - previousDots);
+      input.setSelectionRange(newPosition, newPosition);
+    }, 0);
+  };
+  
+  // Remove formatting for submission
+  const getUnformattedPrice = (price: string): string => {
+    return price.replace(/\./g, '');
   };
   
   // Function to get neighborhoods for selected district
-  const getNeighborhoods = (district: string) => {
-    if (!district) return [];
-    return neighborhoodsByDistrict[district.toLowerCase()] || [];
+  const getNeighborhoods = (district: string): DistrictData => {
+    if (!district) return { mahalle: [], koy: [] };
+    
+    // Type assertion to make TypeScript happy
+    const districtData = (neighborhoodsByDistrict as Record<string, DistrictData>)[district.toLowerCase()];
+    return districtData || { mahalle: [], koy: [] };
   };
   
   // Handle district change
@@ -303,7 +158,7 @@ const FilterArea = () => {
         WebkitTapHighlightColor: 'transparent'
       } as React.CSSProperties}
     >
-      <Tabs defaultValue="konut" className="w-full">
+      <Tabs defaultValue="konut" className="w-full" onValueChange={(value) => setActiveTab(value)}>
         <TabsList className="grid grid-cols-4 mb-3 sm:mb-6 md:mb-10 w-full h-auto p-1 sm:p-1.5 md:p-2 bg-gray-100/80 rounded-md sm:rounded-lg md:rounded-xl">
           <TabsTrigger 
             value="konut" 
@@ -326,15 +181,13 @@ const FilterArea = () => {
             <Map size={14} className="sm:size-[18px] md:size-[22px]" />
             <span>Arsa</span>
           </TabsTrigger>
-          <TabsTrigger value="vasita" asChild>
-            <Link 
-              href="/ilanlar/vasita" 
-              className="font-headings flex items-center justify-center gap-1 sm:gap-1.5 md:gap-2 py-1.5 sm:py-2.5 md:py-4 text-xs sm:text-sm md:text-base font-medium w-full rounded-md hover:bg-gray-200/50 transition-all duration-300"
-            >
-              <Car size={14} className="sm:size-[18px] md:size-[22px]" />
-              <span>Vasıta</span>
-            </Link>
-          </TabsTrigger>
+          <Link 
+            href="/ilanlar/vasita" 
+            className="font-headings flex items-center justify-center gap-1 sm:gap-1.5 md:gap-2 py-1.5 sm:py-2.5 md:py-4 text-xs sm:text-sm md:text-base font-medium w-full rounded-md bg-gray-100/80 text-gray-900"
+          >
+            <Car size={14} className="sm:size-[18px] md:size-[22px]" />
+            <span>Vasıta</span>
+          </Link>
         </TabsList>
 
         {/* Konut Content */}
@@ -382,7 +235,7 @@ const FilterArea = () => {
                       type="text" 
                       placeholder="Min TL" 
                       value={minPrice}
-                      onChange={(e) => setMinPrice(e.target.value)}
+                      onChange={handleMinPriceChange}
                       className="py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all pl-2 sm:pl-3 md:pl-4 text-xs sm:text-sm md:text-base"
                     />
                   </div>
@@ -391,7 +244,7 @@ const FilterArea = () => {
                       type="text" 
                       placeholder="Max TL" 
                       value={maxPrice}
-                      onChange={(e) => setMaxPrice(e.target.value)}
+                      onChange={handleMaxPriceChange}
                       className="py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all pl-2 sm:pl-3 md:pl-4 text-xs sm:text-sm md:text-base"
                     />
                   </div>
@@ -443,7 +296,7 @@ const FilterArea = () => {
               </div>
               
               <div className="relative">
-                <Label className="font-headings mb-1 sm:mb-2 md:mb-3 block text-xs sm:text-sm md:text-base font-medium">İl/İlçe/Mahalle</Label>
+                <Label className="font-headings mb-1 sm:mb-2 md:mb-3 block text-xs sm:text-sm md:text-base font-medium">İl/İlçe/Mahalle-Köy</Label>
                 <div className="grid grid-cols-3 gap-1 sm:gap-1 md:gap-2">
                   <Select defaultValue="tokat">
                     <SelectTrigger className="w-full py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm md:text-base">
@@ -478,14 +331,34 @@ const FilterArea = () => {
                     disabled={!selectedDistrict}
                   >
                     <SelectTrigger className="w-full py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm md:text-base">
-                      <SelectValue placeholder={selectedDistrict ? "Mahalle" : "İlçe Seçin"} />
+                      <SelectValue placeholder={selectedDistrict ? "Mahalle/Köy" : "İlçe Seçin"} />
                     </SelectTrigger>
                     <SelectContent sideOffset={4} className="rounded-xl border border-gray-200 max-h-[200px] sm:max-h-[250px] md:max-h-[300px]">
-                      {getNeighborhoods(selectedDistrict).map((neighborhood) => (
-                        <SelectItem key={neighborhood.value} value={neighborhood.value}>
-                          {formatLabel(neighborhood.label)}
-                        </SelectItem>
-                      ))}
+                      {selectedDistrict && (
+                        <>
+                          {getNeighborhoods(selectedDistrict).mahalle && getNeighborhoods(selectedDistrict).mahalle.length > 0 && (
+                            <>
+                              <div className="px-2 py-1.5 text-sm font-semibold bg-yellow-100 text-yellow-800">Mahalleler</div>
+                              {getNeighborhoods(selectedDistrict).mahalle.map((neighborhood: Neighborhood) => (
+                                <SelectItem key={neighborhood.value} value={neighborhood.value}>
+                                  {neighborhood.label}
+                                </SelectItem>
+                              ))}
+                            </>
+                          )}
+                          
+                          {getNeighborhoods(selectedDistrict).koy && getNeighborhoods(selectedDistrict).koy.length > 0 && (
+                            <>
+                              <div className="px-2 py-1.5 text-sm font-semibold bg-yellow-100 text-yellow-800 mt-1">Köyler</div>
+                              {getNeighborhoods(selectedDistrict).koy.map((koy: Neighborhood) => (
+                                <SelectItem key={koy.value} value={koy.value}>
+                                  {koy.label}
+                                </SelectItem>
+                              ))}
+                            </>
+                          )}
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -497,15 +370,30 @@ const FilterArea = () => {
             <Button 
               size="sm"
               className="font-headings px-4 sm:px-6 md:px-10 py-2 sm:py-4 md:py-7 text-sm sm:text-base md:text-lg font-medium rounded-md sm:rounded-lg md:rounded-xl shadow-lg hover:shadow-xl transition-all duration-500 bg-primary hover:bg-primary/90 group"
+              onClick={() => {
+                const params = new URLSearchParams();
+                
+                if (minPrice) params.append('minPrice', getUnformattedPrice(minPrice));
+                if (maxPrice) params.append('maxPrice', getUnformattedPrice(maxPrice));
+                if (minArea) params.append('minArea', minArea);
+                if (maxArea) params.append('maxArea', maxArea);
+                if (roomCount && roomCount !== 'all') params.append('roomCount', roomCount);
+                if (konutType && konutType !== 'all') params.append('konutType', konutType);
+                if (saleStatus) params.append('listingStatus', saleStatus === 'sale' ? 'satilik' : 'kiralik');
+                if (selectedDistrict) params.append('district', selectedDistrict);
+                if (selectedNeighborhood) params.append('neighborhood', selectedNeighborhood);
+                
+                router.push(`/ilanlar/konut?${params.toString()}`);
+              }}
             >
               <Search className="mr-1.5 sm:mr-2 md:mr-3 group-hover:scale-110 transition-transform duration-300" size={14} />
               Ara
-              <ArrowRight className="ml-1.5 sm:ml-2 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" size={12} />
+              <ArrowRight className="ml-1.5 sm:ml-2 opacity-100 sm:opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" size={12} />
             </Button>
           </div>
         </TabsContent>
 
-        {/* Ticari Content - Apply similar responsive changes */}
+        {/* Ticari Content */}
         <TabsContent value="ticari" className="space-y-3 sm:space-y-5 md:space-y-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 md:gap-8">
             <div className="space-y-2 sm:space-y-4 md:space-y-6">
@@ -551,11 +439,15 @@ const FilterArea = () => {
                   <Input 
                     type="text" 
                     placeholder="Min TL" 
+                    onChange={handleMinPriceChange}
+                    value={minPrice}
                     className="py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all pl-2 sm:pl-3 md:pl-4 text-xs sm:text-sm md:text-base"
                   />
                   <Input 
                     type="text" 
                     placeholder="Max TL" 
+                    onChange={handleMaxPriceChange}
+                    value={maxPrice}
                     className="py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all pl-2 sm:pl-3 md:pl-4 text-xs sm:text-sm md:text-base"
                   />
                 </div>
@@ -597,7 +489,7 @@ const FilterArea = () => {
               </div>
               
               <div className="relative">
-                <Label className="font-headings mb-1 sm:mb-2 md:mb-3 block text-xs sm:text-sm md:text-base font-medium">İl/İlçe/Mahalle</Label>
+                <Label className="font-headings mb-1 sm:mb-2 md:mb-3 block text-xs sm:text-sm md:text-base font-medium">İl/İlçe/Mahalle-Köy</Label>
                 <div className="grid grid-cols-3 gap-1 sm:gap-1 md:gap-2">
                   <Select defaultValue="tokat">
                     <SelectTrigger className="w-full py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm md:text-base">
@@ -632,14 +524,34 @@ const FilterArea = () => {
                     disabled={!selectedDistrict}
                   >
                     <SelectTrigger className="w-full py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm md:text-base">
-                      <SelectValue placeholder={selectedDistrict ? "Mahalle" : "İlçe Seçin"} />
+                      <SelectValue placeholder={selectedDistrict ? "Mahalle/Köy" : "İlçe Seçin"} />
                     </SelectTrigger>
                     <SelectContent sideOffset={4} className="rounded-xl border border-gray-200 max-h-[200px] sm:max-h-[250px] md:max-h-[300px]">
-                      {getNeighborhoods(selectedDistrict).map((neighborhood) => (
-                        <SelectItem key={neighborhood.value} value={neighborhood.value}>
-                          {formatLabel(neighborhood.label)}
-                        </SelectItem>
-                      ))}
+                      {selectedDistrict && (
+                        <>
+                          {getNeighborhoods(selectedDistrict).mahalle && getNeighborhoods(selectedDistrict).mahalle.length > 0 && (
+                            <>
+                              <div className="px-2 py-1.5 text-sm font-semibold bg-yellow-100 text-yellow-800">Mahalleler</div>
+                              {getNeighborhoods(selectedDistrict).mahalle.map((neighborhood: Neighborhood) => (
+                                <SelectItem key={neighborhood.value} value={neighborhood.value}>
+                                  {neighborhood.label}
+                                </SelectItem>
+                              ))}
+                            </>
+                          )}
+                          
+                          {getNeighborhoods(selectedDistrict).koy && getNeighborhoods(selectedDistrict).koy.length > 0 && (
+                            <>
+                              <div className="px-2 py-1.5 text-sm font-semibold bg-yellow-100 text-yellow-800 mt-1">Köyler</div>
+                              {getNeighborhoods(selectedDistrict).koy.map((koy: Neighborhood) => (
+                                <SelectItem key={koy.value} value={koy.value}>
+                                  {koy.label}
+                                </SelectItem>
+                              ))}
+                            </>
+                          )}
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -651,15 +563,28 @@ const FilterArea = () => {
             <Button 
               size="sm"
               className="font-headings px-4 sm:px-6 md:px-10 py-2 sm:py-4 md:py-7 text-sm sm:text-base md:text-lg font-medium rounded-md sm:rounded-lg md:rounded-xl shadow-lg hover:shadow-xl transition-all duration-500 bg-primary hover:bg-primary/90 group"
+              onClick={() => {
+                const params = new URLSearchParams();
+                
+                if (minPrice) params.append('minPrice', getUnformattedPrice(minPrice));
+                if (maxPrice) params.append('maxPrice', getUnformattedPrice(maxPrice));
+                if (minArea) params.append('minArea', minArea);
+                if (maxArea) params.append('maxArea', maxArea);
+                if (saleStatus) params.append('listingStatus', saleStatus === 'sale' ? 'satilik' : 'kiralik');
+                if (selectedDistrict) params.append('district', selectedDistrict);
+                if (selectedNeighborhood) params.append('neighborhood', selectedNeighborhood);
+                
+                router.push(`/ilanlar/ticari?${params.toString()}`);
+              }}
             >
               <Search className="mr-1.5 sm:mr-2 md:mr-3 group-hover:scale-110 transition-transform duration-300" size={14} />
               Ara
-              <ArrowRight className="ml-1.5 sm:ml-2 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" size={12} />
+              <ArrowRight className="ml-1.5 sm:ml-2 opacity-100 sm:opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" size={12} />
             </Button>
           </div>
         </TabsContent>
 
-        {/* Arsa Content - Apply similar responsive changes */}
+        {/* Arsa Content */}
         <TabsContent value="arsa" className="space-y-3 sm:space-y-5 md:space-y-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 md:gap-8">
             <div className="space-y-2 sm:space-y-4 md:space-y-6">
@@ -702,11 +627,15 @@ const FilterArea = () => {
                   <Input 
                     type="text" 
                     placeholder="Min TL" 
+                    onChange={handleMinPriceChange}
+                    value={minPrice}
                     className="py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all pl-2 sm:pl-3 md:pl-4 text-xs sm:text-sm md:text-base"
                   />
                   <Input 
                     type="text" 
                     placeholder="Max TL" 
+                    onChange={handleMaxPriceChange}
+                    value={maxPrice}
                     className="py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all pl-2 sm:pl-3 md:pl-4 text-xs sm:text-sm md:text-base"
                   />
                 </div>
@@ -731,7 +660,7 @@ const FilterArea = () => {
             
             <div className="space-y-2 sm:space-y-4 md:space-y-6">
               <div className="relative">
-                <Label className="font-headings mb-1 sm:mb-2 md:mb-3 block text-xs sm:text-sm md:text-base font-medium">İl/İlçe/Mahalle</Label>
+                <Label className="font-headings mb-1 sm:mb-2 md:mb-3 block text-xs sm:text-sm md:text-base font-medium">İl/İlçe/Mahalle-Köy</Label>
                 <div className="grid grid-cols-3 gap-1 sm:gap-1 md:gap-2">
                   <Select defaultValue="tokat">
                     <SelectTrigger className="w-full py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm md:text-base">
@@ -766,23 +695,36 @@ const FilterArea = () => {
                     disabled={!selectedDistrict}
                   >
                     <SelectTrigger className="w-full py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm md:text-base">
-                      <SelectValue placeholder={selectedDistrict ? "Mahalle" : "İlçe Seçin"} />
+                      <SelectValue placeholder={selectedDistrict ? "Mahalle/Köy" : "İlçe Seçin"} />
                     </SelectTrigger>
                     <SelectContent sideOffset={4} className="rounded-xl border border-gray-200 max-h-[200px] sm:max-h-[250px] md:max-h-[300px]">
-                      {getNeighborhoods(selectedDistrict).map((neighborhood) => (
-                        <SelectItem key={neighborhood.value} value={neighborhood.value}>
-                          {formatLabel(neighborhood.label)}
-                        </SelectItem>
-                      ))}
+                      {selectedDistrict && (
+                        <>
+                          {getNeighborhoods(selectedDistrict).mahalle && getNeighborhoods(selectedDistrict).mahalle.length > 0 && (
+                            <>
+                              <div className="px-2 py-1.5 text-sm font-semibold bg-yellow-100 text-yellow-800">Mahalleler</div>
+                              {getNeighborhoods(selectedDistrict).mahalle.map((neighborhood: Neighborhood) => (
+                                <SelectItem key={neighborhood.value} value={neighborhood.value}>
+                                  {neighborhood.label}
+                                </SelectItem>
+                              ))}
+                            </>
+                          )}
+                          
+                          {getNeighborhoods(selectedDistrict).koy && getNeighborhoods(selectedDistrict).koy.length > 0 && (
+                            <>
+                              <div className="px-2 py-1.5 text-sm font-semibold bg-yellow-100 text-yellow-800 mt-1">Köyler</div>
+                              {getNeighborhoods(selectedDistrict).koy.map((koy: Neighborhood) => (
+                                <SelectItem key={koy.value} value={koy.value}>
+                                  {koy.label}
+                                </SelectItem>
+                              ))}
+                            </>
+                          )}
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-center h-full mt-6">
-                <div className="bg-primary/10 rounded-xl p-4 flex items-center">
-                  <MapPin className="text-primary mr-3" />
-                  <p className="text-sm text-gray-600">Haritada Göster</p>
                 </div>
               </div>
             </div>
@@ -792,10 +734,23 @@ const FilterArea = () => {
             <Button 
               size="sm"
               className="font-headings px-4 sm:px-6 md:px-10 py-2 sm:py-4 md:py-7 text-sm sm:text-base md:text-lg font-medium rounded-md sm:rounded-lg md:rounded-xl shadow-lg hover:shadow-xl transition-all duration-500 bg-primary hover:bg-primary/90 group"
+              onClick={() => {
+                const params = new URLSearchParams();
+                
+                if (minPrice) params.append('minPrice', getUnformattedPrice(minPrice));
+                if (maxPrice) params.append('maxPrice', getUnformattedPrice(maxPrice));
+                if (minArea) params.append('minArea', minArea);
+                if (maxArea) params.append('maxArea', maxArea);
+                if (saleStatus) params.append('listingStatus', saleStatus === 'sale' ? 'satilik' : 'kiralik');
+                if (selectedDistrict) params.append('district', selectedDistrict);
+                if (selectedNeighborhood) params.append('neighborhood', selectedNeighborhood);
+                
+                router.push(`/ilanlar/arsa?${params.toString()}`);
+              }}
             >
               <Search className="mr-1.5 sm:mr-2 md:mr-3 group-hover:scale-110 transition-transform duration-300" size={14} />
               Ara
-              <ArrowRight className="ml-1.5 sm:ml-2 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" size={12} />
+              <ArrowRight className="ml-1.5 sm:ml-2 opacity-100 sm:opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" size={12} />
             </Button>
           </div>
         </TabsContent>

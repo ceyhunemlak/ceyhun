@@ -1,4 +1,6 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import FilterArea from "@/components/FilterArea";
 import ListingsGrid from "@/components/ListingsGrid";
@@ -6,8 +8,52 @@ import Footer from "@/components/Footer";
 import Image from "next/image";
 import Link from "next/link";
 import { Home as HomeIcon, Building2, Map, Car } from "lucide-react";
+import { Loading } from "@/components/ui/loading";
 
 export default function Home() {
+  const [categoryCountData, setCategoryCountData] = useState({
+    konut: 0,
+    ticari: 0,
+    arsa: 0,
+    vasita: 0,
+    total: 0
+  });
+  
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch listing counts from API
+  useEffect(() => {
+    const fetchListingCounts = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch('/api/listings');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch listings');
+        }
+        
+        const data = await response.json();
+        
+        // Count listings by category
+        const counts = {
+          konut: data.filter((listing: any) => listing.property_type === 'konut').length,
+          ticari: data.filter((listing: any) => listing.property_type === 'ticari').length,
+          arsa: data.filter((listing: any) => listing.property_type === 'arsa').length,
+          vasita: data.filter((listing: any) => listing.property_type === 'vasita').length,
+          total: data.length
+        };
+        
+        setCategoryCountData(counts);
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error fetching listing counts:', error);
+        setIsLoading(false);
+      }
+    };
+    
+    fetchListingCounts();
+  }, []);
+
   // Category data with counts
   const categories = [
     {
@@ -16,7 +62,7 @@ export default function Home() {
       description: "Daire, villa, müstakil ev, bina ve daha fazlası",
       image: "/images/ce.png",
       icon: <HomeIcon className="text-primary" size={28} />,
-      count: 2456
+      count: categoryCountData.konut
     },
     {
       id: "ticari",
@@ -24,7 +70,7 @@ export default function Home() {
       description: "Ofis, mağaza, depo, fabrika ve daha fazlası",
       image: "/images/ce1.png",
       icon: <Building2 className="text-primary" size={28} />,
-      count: 1245
+      count: categoryCountData.ticari
     },
     {
       id: "arsa",
@@ -32,7 +78,7 @@ export default function Home() {
       description: "Arsa, arazi, tarla, bahçe ve daha fazlası",
       image: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1200&q=80",
       icon: <Map className="text-primary" size={28} />,
-      count: 987
+      count: categoryCountData.arsa
     },
     {
       id: "vasita",
@@ -40,7 +86,7 @@ export default function Home() {
       description: "Otomobil, motosiklet, ticari araç ve daha fazlası",
       image: "https://images.unsplash.com/photo-1553440569-bcc63803a83d?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1200&q=80",
       icon: <Car className="text-primary" size={28} />,
-      count: 1876
+      count: categoryCountData.vasita
     }
   ];
 
@@ -80,6 +126,12 @@ export default function Home() {
                 </p>
                 <div className="absolute -left-3 sm:-left-4 top-0 w-1.5 sm:w-2 h-8 sm:h-12 bg-primary rounded-full"></div>
               </div>
+              
+              {!isLoading && (
+                <div className="text-sm sm:text-base text-gray-600 font-medium">
+                  Toplam: <span className="font-semibold">{categoryCountData.total}</span> ilan
+                </div>
+              )}
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
@@ -97,7 +149,7 @@ export default function Home() {
                       />
                       {/* Count badge */}
                       <div className="absolute bottom-3 sm:bottom-4 left-3 sm:left-4 bg-white/90 backdrop-blur-sm text-gray-800 text-xs sm:text-sm font-medium px-3 sm:px-4 py-1 sm:py-1.5 rounded-full shadow-md z-10">
-                        {category.count} ilan
+                        {isLoading ? <Loading size="small" className="flex-row gap-1" text="Yükleniyor..." /> : `${category.count} ilan`}
                       </div>
                     </div>
                     
@@ -129,7 +181,7 @@ export default function Home() {
           <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12">
             <div className="max-w-4xl mx-auto text-center mb-8 sm:mb-12">
               <h2 className="text-2xl sm:text-3xl md:text-4xl font-headings font-bold mb-4 sm:mb-6">
-                Neden <span className="text-primary">Bizi</span> Tercih Etmelisiniz?
+                Neden <span className="text-primary text-2xl sm:text-3xl md:text-4xl">Bizi</span> Tercih Etmelisiniz?
               </h2>
               <p className="text-muted-foreground text-base sm:text-lg md:text-xl">
                 Ceyhun Gayrimenkul Emlak olarak müşteri memnuniyetini en üst seviyede tutarak, 
@@ -194,7 +246,7 @@ export default function Home() {
           
           <div className="container relative z-10 mx-auto px-4 sm:px-6 md:px-8 lg:px-12 text-center">
             <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-headings font-bold text-white mb-4 sm:mb-6">
-              Gayrimenkul Yolculuğunuza <span className="text-primary">Bugün</span> Başlayın
+              Gayrimenkul Yolculuğunuza <span className="text-primary text-2xl sm:text-3xl md:text-4xl lg:text-5xl">Bugün</span> Başlayın
             </h2>
             <p className="text-gray-300 text-base sm:text-lg md:text-xl max-w-3xl mx-auto mb-6 sm:mb-10">
               Size özel gayrimenkul ve vasıta çözümleri için hemen bizimle iletişime geçin.
@@ -203,9 +255,9 @@ export default function Home() {
               <button className="bg-primary hover:bg-primary/90 text-white font-medium px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg transition-all duration-300 shadow-lg hover:shadow-xl">
                 Bize Ulaşın
               </button>
-              <button className="bg-transparent border-2 border-white/30 hover:border-white text-white font-medium px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg transition-all duration-300">
+              <Link href="/ilanlar/konut" className="bg-transparent border-2 border-white/30 hover:border-white text-white font-medium px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg transition-all duration-300">
                 İlanları Keşfedin
-              </button>
+              </Link>
             </div>
           </div>
         </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { Loading } from "@/components/ui/loading";
 
 export default function AdminLayout({
   children,
@@ -36,7 +37,7 @@ export default function AdminLayout({
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-black">
-        <div className="animate-spin h-12 w-12 border-4 border-[#FFB000] border-t-transparent rounded-full"></div>
+        <Loading size="large" />
       </div>
     );
   }

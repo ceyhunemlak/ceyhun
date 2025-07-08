@@ -77,7 +77,8 @@ export async function POST(request: NextRequest) {
         has_elevator,
         is_furnished,
         allows_trade,
-        is_eligible_for_credit
+        is_eligible_for_credit,
+        inSite
       } = details;
 
       // Check required enum fields
@@ -120,7 +121,8 @@ export async function POST(request: NextRequest) {
           has_elevator,
           is_furnished,
           allows_trade,
-          is_eligible_for_credit
+          is_eligible_for_credit,
+          in_site: inSite || false
         });
       
       detailsError = error;
@@ -341,9 +343,13 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const slug = searchParams.get('slug');
+    
+    console.log('GET /api/listings - Parameters:', { id, slug });
     
     if (id) {
-      // Get a specific listing with all its related details
+      // Get a specific listing with all its related details by ID
+      console.log('Fetching listing by ID:', id);
       const { data, error } = await supabase
         .from('listings')
         .select(`
@@ -359,26 +365,102 @@ export async function GET(request: NextRequest) {
         .single();
         
       if (error) {
+        console.error('Supabase error when fetching by ID:', error);
         return NextResponse.json(
-          { error: 'Listing not found' },
+          { error: 'Listing not found', details: error },
           { status: 404 }
         );
       }
       
+      // Check if the data is valid
+      if (!data) {
+        console.error('No data returned for ID:', id);
+        return NextResponse.json(
+          { error: 'Listing data is empty' },
+          { status: 404 }
+        );
+      }
+      
+      console.log('Listing found by ID:', { 
+        id: data.id, 
+        title: data.title,
+        has_images: data.images?.length > 0,
+        has_konut_details: data.konut_details?.length > 0,
+        has_ticari_details: data.ticari_details?.length > 0,
+        has_arsa_details: data.arsa_details?.length > 0,
+        has_vasita_details: data.vasita_details?.length > 0,
+        has_addresses: data.addresses?.length > 0
+      });
+      
+      return NextResponse.json(data);
+    } else if (slug) {
+      // Get a specific listing with all its related details by slug
+      // Convert the slug to a title by replacing hyphens with spaces
+      const titleFromSlug = slug.replace(/-/g, ' ');
+      
+      console.log('Fetching listing by slug, converted to title:', titleFromSlug);
+      
+      // Search for listings with a similar title (case insensitive)
+      const { data, error } = await supabase
+        .from('listings')
+        .select(`
+          *,
+          images(*),
+          konut_details(*),
+          ticari_details(*),
+          arsa_details(*),
+          vasita_details(*),
+          addresses(*)
+        `)
+        .ilike('title', `%${titleFromSlug}%`)
+        .limit(1)
+        .single();
+        
+      if (error) {
+        console.error('Supabase error when fetching by slug:', error);
+        return NextResponse.json(
+          { error: 'Listing not found', details: error },
+          { status: 404 }
+        );
+      }
+      
+      // Check if the data is valid
+      if (!data) {
+        console.error('No data returned for slug:', slug);
+        return NextResponse.json(
+          { error: 'Listing data is empty' },
+          { status: 404 }
+        );
+      }
+      
+      console.log('Listing found by slug:', { 
+        id: data.id, 
+        title: data.title,
+        has_images: data.images?.length > 0,
+        has_konut_details: data.konut_details?.length > 0,
+        has_ticari_details: data.ticari_details?.length > 0,
+        has_arsa_details: data.arsa_details?.length > 0,
+        has_vasita_details: data.vasita_details?.length > 0,
+        has_addresses: data.addresses?.length > 0
+      });
+      
       return NextResponse.json(data);
     } else {
       // Get all listings with their cover images
+      console.log('Fetching all listings');
       const { data, error } = await supabase
         .from('listings')
         .select(`
           *,
           images(url, is_cover)
         `)
+        .eq('is_active', true)
         .order('created_at', { ascending: false });
         
       if (error) {
+        console.error('Supabase error when fetching all listings:', error);
         return NextResponse.json(
-          { error: 'Failed to fetch listings' },
+          { error: 'Failed to fetch listings', details: error },
           { status: 500 }
         );
       }
@@ -397,12 +479,13 @@ export async function GET(request: NextRequest) {
         };
       });
       
+      console.log(`Fetched ${transformedData.length} listings`);
       return NextResponse.json(transformedData);
     }
   } catch (error) {
     console.error('Error in listings route:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch listings' },
+      { error: 'Failed to fetch listings', details: error },
       { status: 500 }
     );
   }
@@ -586,7 +669,7 @@ export async function DELETE(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const data = await request.json();
-    const { id, is_featured } = data;
+    const { id, is_featured, is_active } = data;
     
     if (!id) {
       return NextResponse.json(
@@ -595,23 +678,35 @@ export async function PATCH(request: NextRequest) {
       );
     }
     
-    // Update the listing's featured status
+    // Create an update object with the fields that are provided
+    const updateData: { is_featured?: boolean; is_active?: boolean } = {};
+    
+    // Only include fields that are provided in the request
+    if (is_featured !== undefined) {
+      updateData.is_featured = is_featured;
+    }
+    
+    if (is_active !== undefined) {
+      updateData.is_active = is_active;
+    }
+    
+    // Update the listing
     const { error } = await supabase
       .from('listings')
-      .update({ is_featured })
+      .update(updateData)
       .eq('id', id);
       
     if (error) {
-      console.error('Error updating listing featured status:', error);
+      console.error('Error updating listing:', error);
       return NextResponse.json(
-        { error: 'Failed to update listing featured status' },
+        { error: 'Failed to update listing' },
         { status: 500 }
       );
     }
     
     return NextResponse.json({ 
       success: true,
-      is_featured
+      ...updateData
     });
   } catch (error) {
     console.error('Error in listings route:', error);

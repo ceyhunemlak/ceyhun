@@ -4,14 +4,30 @@ import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
-import { X, Upload, Image as ImageIcon, AlertCircle, GripVertical } from "lucide-react";
+import { X, Upload, AlertCircle, GripVertical } from "lucide-react";
 import Image from "next/image";
-import { DndProvider, useDrag, useDrop } from "react-dnd";
-import { HTML5Backend } from "react-dnd-html5-backend";
+import { useDrag, useDrop } from "react-dnd";
 
 interface PhotoUploadProps {
-  formData: any;
-  updateFormData: (data: any) => void;
+  formData: {
+    photos?: Photo[];
+    photosToDelete?: string[];
+    uploadPhotosToCloudinary?: (propertyType: string, listingId: string) => Promise<Photo[]>;
+    title?: string;
+    [key: string]: any;
+  };
+  updateFormData: (data: Partial<{
+    photos: Photo[];
+    photosToDelete: string[];
+  }>) => void;
+}
+
+interface Photo {
+  id?: string;
+  url?: string;
+  preview: string;
+  file?: File;
+  isExisting?: boolean;
 }
 
 // Sürüklenebilir fotoğraf kartı bileşeni
@@ -21,7 +37,7 @@ const DraggablePhotoCard = ({
   movePhoto, 
   removePhoto 
 }: { 
-  photo: any; 
+  photo: Photo; 
   index: number; 
   movePhoto: (dragIndex: number, hoverIndex: number) => void; 
   removePhoto: (index: number) => void; 
@@ -38,7 +54,7 @@ const DraggablePhotoCard = ({
   
   const [, drop] = useDrop({
     accept: "PHOTO",
-    hover: (item: { index: number }, monitor) => {
+    hover: (item: { index: number }) => {
       if (!ref.current) {
         return;
       }
@@ -100,7 +116,7 @@ const DraggablePhotoCard = ({
 };
 
 export default function PhotoUpload({ formData, updateFormData }: PhotoUploadProps) {
-  const [photos, setPhotos] = useState<any[]>(formData.photos || []);
+  const [photos, setPhotos] = useState<Photo[]>(formData.photos || []);
   const [photosToDelete, setPhotosToDelete] = useState<string[]>(formData.photosToDelete || []);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -122,10 +138,10 @@ export default function PhotoUpload({ formData, updateFormData }: PhotoUploadPro
   useEffect(() => {
     if (formData.photos) {
       // Ensure we don't have duplicates by checking IDs
-      const uniquePhotos: any[] = [];
+      const uniquePhotos: Photo[] = [];
       const seenIds = new Set<string>();
       
-      formData.photos.forEach((photo: any) => {
+      formData.photos.forEach((photo: Photo) => {
         if (photo.isExisting && photo.id) {
           if (!seenIds.has(photo.id)) {
             seenIds.add(photo.id);
@@ -295,9 +311,9 @@ export default function PhotoUpload({ formData, updateFormData }: PhotoUploadPro
   };
 
   // Function to upload all photos to Cloudinary when the form is submitted
-  const uploadPhotosToCloudinary = async (propertyType: string, listingId: string) => {
+  const uploadPhotosToCloudinary = async (propertyType: string, listingId: string): Promise<Photo[]> => {
     setIsUploading(true);
-    const uploadedPhotos = [];
+    const uploadedPhotos: Photo[] = [];
     
     try {
       // Prepare the title once for all photos
@@ -307,7 +323,7 @@ export default function PhotoUpload({ formData, updateFormData }: PhotoUploadPro
       }
       
       // Determine existing folder path from the first existing photo (if any)
-      let existingFolderPath = null;
+      let existingFolderPath: string | null = null;
       const existingPhotos = photos.filter(p => p.isExisting);
       if (existingPhotos.length > 0 && existingPhotos[0].id) {
         existingFolderPath = extractFolderPath(existingPhotos[0].id);
@@ -320,18 +336,25 @@ export default function PhotoUpload({ formData, updateFormData }: PhotoUploadPro
         const photo = photos[i];
         
         // Skip if already uploaded (existing photos)
-        if (photo.isExisting) {
+        if (photo.isExisting && photo.id) {
           // Only add if not already in the uploadedPhotos array
           if (!uploadedPhotoIds.has(photo.id)) {
             uploadedPhotoIds.add(photo.id);
             uploadedPhotos.push({
               id: photo.id,
-              url: photo.url,
+              url: photo.url || '',
+              preview: photo.preview,
               isExisting: true
             });
           } else {
             console.log(`Skipping duplicate existing photo: ${photo.id}`);
           }
+          continue;
+        }
+        
+        // Skip if file is missing
+        if (!photo.file) {
+          console.error(`Photo at index ${i} has no file to upload`);
           continue;
         }
         
@@ -363,7 +386,9 @@ export default function PhotoUpload({ formData, updateFormData }: PhotoUploadPro
         const result = await response.json();
         uploadedPhotos.push({
           id: result.id,
-          url: result.url
+          url: result.url,
+          preview: photo.preview, // Add the preview from the original photo
+          isExisting: false
         });
       }
       
@@ -442,15 +467,6 @@ export default function PhotoUpload({ formData, updateFormData }: PhotoUploadPro
               </div>
             </>
           )}
-          
-          {photos.length === 0 && (
-            <div className="border rounded-lg p-8 text-center">
-              <div className="flex flex-col items-center justify-center space-y-2">
-                <ImageIcon className="h-10 w-10 text-gray-400" />
-                <p className="text-gray-500">Henüz fotoğraf eklenmedi</p>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
@@ -460,7 +476,7 @@ export default function PhotoUpload({ formData, updateFormData }: PhotoUploadPro
             <p className="text-amber-700 text-sm">
               <strong>İpucu:</strong> Fotoğrafları sürükleyerek sıralayabilirsiniz. İlk sıradaki fotoğraf vitrin fotoğrafı olarak kullanılacaktır.
               {photos.some(p => p.isExisting) && (
-                <> "Mevcut" olarak işaretli fotoğraflar daha önce yüklenmiş fotoğraflardır. Bunları silmek veya yerlerini değiştirmek güvenlidir.</>
+                <> &quot;Mevcut&quot; olarak işaretli fotoğraflar daha önce yüklenmiş fotoğraflardır. Bunları silmek veya yerlerini değiştirmek güvenlidir.</>
               )}
             </p>
           </div>

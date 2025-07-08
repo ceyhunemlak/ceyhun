@@ -25,3 +25,21 @@ export function handleEnumField(value: string | null | undefined) {
   if (value === "" || value === "none" || value === undefined) return null;
   return value;
 }
+
+// Create a slug from a title
+export function createSlug(title: string | null | undefined): string {
+  if (!title) return '';
+  
+  return title
+    .toLowerCase()
+    .replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u')
+    .replace(/ş/g, 's')
+    .replace(/ı/g, 'i')
+    .replace(/ö/g, 'o')
+    .replace(/ç/g, 'c')
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special characters except spaces and hyphens
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with a single hyphen
+    .trim();
+}

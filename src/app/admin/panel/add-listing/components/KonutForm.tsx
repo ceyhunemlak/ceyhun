@@ -33,6 +33,7 @@ export default function KonutForm({ formData, updateFormData, listingType }: Kon
     isFurnished: formData.isFurnished || false,
     isExchangeable: formData.isExchangeable || false,
     isSuitableForCredit: formData.isSuitableForCredit || false,
+    inSite: formData.inSite || false, // Site içerisinde özelliği eklendi
   });
 
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -458,6 +459,21 @@ export default function KonutForm({ formData, updateFormData, listingType }: Kon
               className="font-medium cursor-pointer flex-1"
             >
               Krediye Uygun
+            </Label>
+          </div>
+
+          <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+               onClick={() => handleChange("inSite", !form.inSite)}>
+            <div className="flex items-center justify-center">
+              <div className={`w-5 h-5 rounded border flex items-center justify-center ${form.inSite ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
+                {form.inSite && <Check className="h-3 w-3 text-white stroke-[3]" />}
+              </div>
+            </div>
+            <Label 
+              htmlFor="inSite" 
+              className="font-medium cursor-pointer flex-1"
+            >
+              Site İçerisinde
             </Label>
           </div>
         </div>

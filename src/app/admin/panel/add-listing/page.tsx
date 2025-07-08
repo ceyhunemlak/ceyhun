@@ -8,12 +8,85 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronLeft, ChevronRight, Check, X, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, X, Loader2, ChevronRight as ChevronRightIcon } from "lucide-react";
+import { Loading } from "@/components/ui/loading";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { handleEnumField } from '@/lib/utils';
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+// Helper function to get display name for categories
+const getCategoryDisplayName = (category: string): string => {
+  const categoryDisplayMap: Record<string, string> = {
+    konut: 'Konut',
+    ticari: 'Ticari',
+    arsa: 'Arsa',
+    vasita: 'Vasıta'
+  };
+
+  return categoryDisplayMap[category] || category;
+};
+
+// Helper function to get display name for listing status
+const getListingStatusDisplayName = (status: string): string => {
+  const statusDisplayMap: Record<string, string> = {
+    satilik: 'Satılık',
+    kiralik: 'Kiralık'
+  };
+
+  return statusDisplayMap[status] || status;
+};
+
+// Helper function to get display name for property types
+const getTypeDisplayName = (category: string, type: string): string => {
+  const typeDisplayMap: Record<string, Record<string, string>> = {
+    konut: {
+      daire: 'Daire',
+      villa: 'Villa',
+      mustakil_ev: 'Müstakil Ev',
+      bina: 'Bina'
+    },
+    ticari: {
+      dukkan: 'Dükkan',
+      depo: 'Depo',
+      villa: 'Villa',
+      fabrika: 'Fabrika',
+      atolye: 'Atölye',
+      plaza: 'Plaza',
+      bina: 'Bina',
+      ofis: 'Ofis',
+      cafe: 'Cafe',
+      bufe: 'Büfe'
+    },
+    arsa: {
+      tarla: 'Tarla',
+      bahce: 'Bahçe',
+      konut_imarli: 'Konut İmarlı',
+      ticari_imarli: 'Ticari İmarlı'
+    },
+    vasita: {
+      otomobil: 'Otomobil',
+      suv: 'SUV',
+      atv: 'ATV',
+      utv: 'UTV',
+      van: 'Van',
+      motosiklet: 'Motosiklet',
+      bisiklet: 'Bisiklet',
+      ticari: 'Ticari'
+    }
+  };
+
+  return typeDisplayMap[category]?.[type] || type;
+};
 
 // Dynamically import the form components to avoid loading them all at once
 const KonutForm = dynamic(() => import("./components/KonutForm"), { ssr: false });
@@ -22,6 +95,7 @@ const ArsaForm = dynamic(() => import("./components/ArsaForm"), { ssr: false });
 const VasitaForm = dynamic(() => import("./components/VasitaForm"), { ssr: false });
 const AddressForm = dynamic(() => import("./components/AddressForm"), { ssr: false });
 const PhotoUpload = dynamic(() => import("./components/PhotoUpload"), { ssr: false });
+const ListingDetailPreview = dynamic(() => import("./components/ListingDetailPreview"), { ssr: false });
 
 // Step 1: Category Selection
 const CategorySelection = ({ 
@@ -274,51 +348,7 @@ const ListingPreview = ({
 
   // Get proper display name for property type
   const getPropertyTypeDisplayName = () => {
-    // Define property type mappings
-    const propertyTypeMap: Record<string, Record<string, string>> = {
-      konut: {
-        "daire": "Daire",
-        "villa": "Villa",
-        "mustakil_ev": "Müstakil Ev",
-        "bina": "Bina"
-      },
-      ticari: {
-        "dukkan": "Dükkan",
-        "depo": "Depo",
-        "villa": "Villa",
-        "fabrika": "Fabrika",
-        "atolye": "Atölye",
-        "plaza": "Plaza",
-        "bina": "Bina",
-        "ofis": "Ofis",
-        "cafe": "Cafe",
-        "bufe": "Büfe"
-      },
-      arsa: {
-        "tarla": "Tarla",
-        "bahce": "Bahçe",
-        "konut_imarli": "Konut İmarlı",
-        "ticari_imarli": "Ticari İmarlı"
-      },
-      vasita: {
-        "otomobil": "Otomobil",
-        "suv": "SUV",
-        "atv": "ATV",
-        "utv": "UTV",
-        "van": "Van",
-        "motosiklet": "Motosiklet",
-        "bisiklet": "Bisiklet",
-        "ticari": "Ticari"
-      }
-    };
-
-    if (selectedCategory && selectedType) {
-      const categoryTypes = propertyTypeMap[selectedCategory];
-      if (categoryTypes && categoryTypes[selectedType]) {
-        return categoryTypes[selectedType];
-      }
-    }
-    return selectedType;
+    return getTypeDisplayName(selectedCategory, selectedType);
   };
 
   // Format the form data for display
@@ -343,12 +373,13 @@ const ListingPreview = ({
     
     // Add listing status
     if (listingStatus) {
-      result.push({ label: "İlan Durumu", value: listingStatus === "satilik" ? "Satılık" : "Kiralık" });
+      result.push({ label: "İlan Durumu", value: getListingStatusDisplayName(listingStatus) });
     }
     
     // Other form fields
     for (const [key, value] of Object.entries(formData)) {
-      if (value && key !== "photos") {
+      // Skip certain fields that we handle specially
+      if (value && key !== "photos" && key !== "inSite") {
         // Format the key for display
         const label = key
           .replace(/([A-Z])/g, ' $1') // Insert a space before all capital letters
@@ -356,6 +387,14 @@ const ListingPreview = ({
         
         result.push({ label, value });
       }
+    }
+    
+    // Add special fields with custom labels
+    if (selectedCategory === 'konut' && formData.inSite !== undefined) {
+      result.push({ 
+        label: "Site İçerisinde", 
+        value: formData.inSite ? "Evet" : "Hayır" 
+      });
     }
     
     // Photos count
@@ -450,6 +489,8 @@ export default function AddListing() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCurrentStepValid, setIsCurrentStepValid] = useState(false);
   const [isLoading, setIsLoading] = useState(isEditMode);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   // Fetch listing data if in edit mode
   useEffect(() => {
@@ -712,13 +753,28 @@ export default function AddListing() {
   };
 
   const handleCancel = () => {
-    if (window.confirm("İlan ekleme işlemini iptal etmek istediğinize emin misiniz?")) {
-      router.push("/admin/panel");
-    }
+    setShowCancelDialog(true);
+  };
+
+  const confirmCancel = () => {
+    setShowCancelDialog(false);
+    router.push("/admin/panel");
+  };
+
+  const closeCancelDialog = () => {
+    setShowCancelDialog(false);
   };
 
   const updateFormData = (data: any) => {
     setFormData((prev) => ({ ...prev, ...data }));
+  };
+
+  const openConfirmDialog = () => {
+    setShowConfirmDialog(true);
+  };
+
+  const closeConfirmDialog = () => {
+    setShowConfirmDialog(false);
   };
 
   const handleSubmit = async () => {
@@ -729,6 +785,7 @@ export default function AddListing() {
     }
     
     setIsSubmitting(true);
+    closeConfirmDialog();
     
     try {
       // Common data for both create and update
@@ -963,6 +1020,24 @@ export default function AddListing() {
     );
   };
 
+  // Add event listener for beforeunload
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Only show confirmation if user has entered data beyond step 1
+      if (currentStep > 1) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [currentStep]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -989,9 +1064,8 @@ export default function AddListing() {
 
       {/* Loading State */}
       {isLoading ? (
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex flex-col items-center justify-center">
-          <Loader2 className="h-12 w-12 text-[#FFB000] animate-spin mb-4" />
-          <p className="text-lg text-gray-600">İlan bilgileri yükleniyor...</p>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <Loading size="large" text="İlan bilgileri yükleniyor..." />
         </div>
       ) : (
         // Main Content
@@ -1043,6 +1117,32 @@ export default function AddListing() {
               </div>
             </div>
 
+            {/* Category Breadcrumb Navigation */}
+            {selectedCategory && (
+              <div className="mb-4 flex items-center text-sm bg-gray-50 p-3 rounded-md overflow-x-auto border border-gray-100 shadow-sm">
+                <span className="font-medium text-[#FFB000]">Kategori:</span>
+                <div className="flex items-center ml-2">
+                  <span className="font-medium text-gray-800">{getCategoryDisplayName(selectedCategory)}</span>
+                  
+                  {selectedType && (
+                    <>
+                      <ChevronRightIcon className="h-4 w-4 mx-1 text-gray-400" />
+                      <span className="font-medium text-gray-800">
+                        {getTypeDisplayName(selectedCategory, selectedType)}
+                      </span>
+                    </>
+                  )}
+                  
+                  {selectedCategory !== 'vasita' && listingStatus && (
+                    <>
+                      <ChevronRightIcon className="h-4 w-4 mx-1 text-gray-400" />
+                      <span className="font-medium text-gray-800">{getListingStatusDisplayName(listingStatus)}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Step Content */}
             <AnimatePresence mode="wait">
               <motion.div
@@ -1072,6 +1172,25 @@ export default function AddListing() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-6">
+                      {/* Top navigation buttons */}
+                      <div className="flex justify-between mb-6">
+                        <Button
+                          onClick={handlePrevious}
+                          variant="outline"
+                          className="border-[#FFB000] text-[#FFB000] hover:bg-[#FFB000]/5"
+                        >
+                          <ChevronLeft className="mr-2 h-4 w-4" /> Geri
+                        </Button>
+                        
+                        <Button
+                          onClick={handleNext}
+                          disabled={!isCurrentStepValid}
+                          className="bg-[#FFB000] hover:bg-[#FFB000]/80 text-black font-medium"
+                        >
+                          Devam Et <ChevronRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </div>
+
                       {renderStep2Content()}
                       
                       <div className="pt-8 flex justify-between">
@@ -1102,6 +1221,25 @@ export default function AddListing() {
                       <CardTitle className="text-xl font-bold">Adım 3: Adres Bilgileri</CardTitle>
                     </CardHeader>
                     <CardContent className="pt-6">
+                      {/* Top navigation buttons */}
+                      <div className="flex justify-between mb-6">
+                        <Button
+                          onClick={handlePrevious}
+                          variant="outline"
+                          className="border-[#FFB000] text-[#FFB000] hover:bg-[#FFB000]/5"
+                        >
+                          <ChevronLeft className="mr-2 h-4 w-4" /> Geri
+                        </Button>
+                        
+                        <Button
+                          onClick={handleNext}
+                          disabled={!isCurrentStepValid}
+                          className="bg-[#FFB000] hover:bg-[#FFB000]/80 text-black font-medium"
+                        >
+                          Devam Et <ChevronRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </div>
+
                       <AddressForm formData={formData} updateFormData={updateFormData} />
                       
                       <div className="pt-8 flex justify-between">
@@ -1132,6 +1270,25 @@ export default function AddListing() {
                       <CardTitle className="text-xl font-bold">Adım 3: Fotoğraf Yükleme</CardTitle>
                     </CardHeader>
                     <CardContent className="pt-6">
+                      {/* Top navigation buttons */}
+                      <div className="flex justify-between mb-6">
+                        <Button
+                          onClick={handlePrevious}
+                          variant="outline"
+                          className="border-[#FFB000] text-[#FFB000] hover:bg-[#FFB000]/5"
+                        >
+                          <ChevronLeft className="mr-2 h-4 w-4" /> Geri
+                        </Button>
+                        
+                        <Button
+                          onClick={handleNext}
+                          disabled={!isCurrentStepValid}
+                          className="bg-[#FFB000] hover:bg-[#FFB000]/80 text-black font-medium"
+                        >
+                          Devam Et <ChevronRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </div>
+
                       <PhotoUpload formData={formData} updateFormData={updateFormData} />
                       
                       <div className="pt-8 flex justify-between">
@@ -1164,6 +1321,25 @@ export default function AddListing() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-6">
+                      {/* Top navigation buttons */}
+                      <div className="flex justify-between mb-6">
+                        <Button
+                          onClick={handlePrevious}
+                          variant="outline"
+                          className="border-[#FFB000] text-[#FFB000] hover:bg-[#FFB000]/5"
+                        >
+                          <ChevronLeft className="mr-2 h-4 w-4" /> Geri
+                        </Button>
+                        
+                        <Button
+                          onClick={handleNext}
+                          disabled={!isCurrentStepValid}
+                          className="bg-[#FFB000] hover:bg-[#FFB000]/80 text-black font-medium"
+                        >
+                          Devam Et <ChevronRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </div>
+
                       <PhotoUpload formData={formData} updateFormData={updateFormData} />
                       
                       <div className="pt-8 flex justify-between">
@@ -1196,13 +1372,41 @@ export default function AddListing() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-6">
-                      <ListingPreview 
+                      {/* Top navigation buttons */}
+                      <div className="flex justify-between mb-6">
+                        <Button
+                          onClick={handlePrevious}
+                          variant="outline"
+                          className="border-[#FFB000] text-[#FFB000] hover:bg-[#FFB000]/5"
+                        >
+                          <ChevronLeft className="mr-2 h-4 w-4" /> Geri
+                        </Button>
+                        
+                        <Button
+                          onClick={openConfirmDialog}
+                          disabled={isSubmitting}
+                          className="bg-[#FFB000] hover:bg-[#FFB000]/80 text-black font-medium"
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> İşleniyor...
+                            </>
+                          ) : (
+                            <>
+                              {isEditMode ? "İlanı Güncelle" : "İlanı Tamamla"} <Check className="ml-2 h-4 w-4" />
+                            </>
+                          )}
+                        </Button>
+                      </div>
+
+                      <ListingDetailPreview 
                         formData={formData} 
                         selectedCategory={selectedCategory} 
                         selectedType={selectedType} 
                         listingStatus={listingStatus} 
                       />
                       
+                      {/* Bottom navigation buttons */}
                       <div className="pt-8 flex justify-between">
                         <Button
                           onClick={handlePrevious}
@@ -1213,7 +1417,7 @@ export default function AddListing() {
                         </Button>
                         
                         <Button
-                          onClick={handleSubmit}
+                          onClick={openConfirmDialog}
                           disabled={isSubmitting}
                           className="bg-[#FFB000] hover:bg-[#FFB000]/80 text-black font-medium"
                         >
@@ -1238,6 +1442,73 @@ export default function AddListing() {
           </main>
         </DndProvider>
       )}
+
+      {/* Confirmation Dialog */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>İlanı {isEditMode ? 'Güncelle' : 'Tamamla'}</DialogTitle>
+            <DialogDescription>
+              {isEditMode 
+                ? "İlan bilgilerini güncellemek istediğinize emin misiniz?" 
+                : "İlanı yayınlamak istediğinize emin misiniz?"}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-end gap-2 mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={closeConfirmDialog}
+            >
+              İptal
+            </Button>
+            <Button
+              type="button"
+              className="bg-[#FFB000] hover:bg-[#FFB000]/80 text-black font-medium"
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> İşleniyor...
+                </>
+              ) : (
+                <>
+                  Onaylıyorum
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Confirmation Dialog */}
+      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>İşlemi İptal Et</DialogTitle>
+            <DialogDescription>
+              İlan {isEditMode ? 'düzenleme' : 'ekleme'} işlemini iptal etmek istediğinize emin misiniz? Girdiğiniz tüm bilgiler kaybolacaktır.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-end gap-2 mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={closeCancelDialog}
+            >
+              Vazgeç
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={confirmCancel}
+            >
+              İptal Et
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

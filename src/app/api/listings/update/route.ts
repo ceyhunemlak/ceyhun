@@ -161,7 +161,8 @@ export async function PUT(request: NextRequest) {
         has_elevator,
         is_furnished,
         allows_trade,
-        is_eligible_for_credit
+        is_eligible_for_credit,
+        inSite
       } = details;
 
       // Check required enum fields
@@ -203,7 +204,8 @@ export async function PUT(request: NextRequest) {
           has_elevator,
           is_furnished,
           allows_trade,
-          is_eligible_for_credit
+          is_eligible_for_credit,
+          in_site: inSite || false
         })
         .eq('listing_id', id);
       
