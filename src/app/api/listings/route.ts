@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { handleEnumField } from '@/lib/utils';
-import { deleteCloudinaryFolder, deleteCloudinaryImage } from '@/lib/cloudinary';
+import { deleteCloudinaryFolder, deleteCloudinaryImage, renameCloudinaryFolder } from '@/lib/cloudinary';
 import { cloudinary } from '@/lib/cloudinary';
 
 export async function POST(request: NextRequest) {
@@ -15,6 +15,8 @@ export async function POST(request: NextRequest) {
       property_type,
       listing_status,
       photos,
+      photosToDelete,
+      folderRename,
       ...details
     } = data;
 
@@ -28,7 +30,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate a UUID for the listing
-    const listingId = uuidv4();
+    const listingId = data.id || uuidv4();
 
     console.log('Creating listing with data:', { 
       id: listingId,
@@ -38,6 +40,45 @@ export async function POST(request: NextRequest) {
       property_type,
       listing_status: listing_status || 'satilik'
     });
+
+    // Handle folder rename if requested
+    if (folderRename && folderRename.oldPath && folderRename.newPath) {
+      console.log(`Renaming folder from ${folderRename.oldPath} to ${folderRename.newPath}`);
+      
+      try {
+        const renameResult = await renameCloudinaryFolder(folderRename.oldPath, folderRename.newPath);
+        
+        if (renameResult.success) {
+          console.log(`Successfully renamed folder from ${folderRename.oldPath} to ${folderRename.newPath}`);
+          
+          // Update image records in the database if resources were moved
+          if (renameResult.movedResources && renameResult.movedResources.length > 0) {
+            console.log(`Updating ${renameResult.movedResources.length} image records with new paths`);
+            
+            for (const resource of renameResult.movedResources) {
+              try {
+                // For new listings, we'll update the photos array directly
+                // since we haven't inserted the images into the database yet
+                if (photos) {
+                  const photoIndex = photos.findIndex((photo: any) => photo.id === resource.oldId);
+                  if (photoIndex !== -1) {
+                    photos[photoIndex].id = resource.newId;
+                    photos[photoIndex].url = resource.newUrl;
+                  }
+                }
+              } catch (updateError) {
+                console.error(`Error updating image data for ${resource.oldId}:`, updateError);
+              }
+            }
+          }
+        } else {
+          console.error(`Failed to rename folder from ${folderRename.oldPath} to ${folderRename.newPath}`);
+        }
+      } catch (error) {
+        console.error(`Error renaming folder: ${error instanceof Error ? error.message : String(error)}`);
+        // Continue with the update even if folder rename fails
+      }
+    }
 
     // 1. Insert into main listings table
     const { error: listingError } = await supabase

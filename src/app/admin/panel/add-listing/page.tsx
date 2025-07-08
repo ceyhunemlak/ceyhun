@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -480,174 +480,223 @@ export default function AddListing() {
   const searchParams = useSearchParams();
   const listingId = searchParams.get('id');
   const isEditMode = !!listingId;
-
-  const [currentStep, setCurrentStep] = useState<number>(1);
+  
+  const [currentStep, setCurrentStep] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedType, setSelectedType] = useState("");
   const [listingStatus, setListingStatus] = useState("");
-  const [formData, setFormData] = useState<Record<string, any>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isCurrentStepValid, setIsCurrentStepValid] = useState(false);
+  const [formData, setFormData] = useState<any>({});
   const [isLoading, setIsLoading] = useState(isEditMode);
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [tempListingId, setTempListingId] = useState<string | null>(null);
+  const [cloudinaryFolder, setCloudinaryFolder] = useState<string | null>(null);
+  const [isCurrentStepValid, setIsCurrentStepValid] = useState(false);
 
-  // Fetch listing data if in edit mode
+  // Generate a temporary listing ID on component mount
   useEffect(() => {
-    if (isEditMode) {
-      const fetchListingData = async () => {
-        try {
-          setIsLoading(true);
-          const response = await fetch(`/api/listings?id=${listingId}`);
-          
-          if (!response.ok) {
-            throw new Error('Failed to fetch listing');
-          }
-          
-          const data = await response.json();
-          
-          // Set main category
-          setSelectedCategory(data.property_type);
-          
-          // Set listing status
-          setListingStatus(data.listing_status);
-          
-          // Set sub-category based on property type
-          if (data.property_type === 'konut' && data.konut_details?.[0]) {
-            setSelectedType(data.konut_details[0].konut_type);
-          } else if (data.property_type === 'ticari' && data.ticari_details?.[0]) {
-            setSelectedType(data.ticari_details[0].ticari_type);
-          } else if (data.property_type === 'arsa' && data.arsa_details?.[0]) {
-            setSelectedType(data.arsa_details[0].arsa_type);
-          } else if (data.property_type === 'vasita' && data.vasita_details?.[0]) {
-            setSelectedType(data.vasita_details[0].vasita_type);
-          }
-          
-          // Prepare form data based on property type
-          const formDataObj: Record<string, any> = {
-            title: data.title,
-            description: data.description,
-            price: data.price
-          };
-          
-          // Add property-specific fields
-          if (data.property_type === 'konut' && data.konut_details?.[0]) {
-            const konutDetails = data.konut_details[0];
-            Object.assign(formDataObj, {
-              grossArea: konutDetails.gross_sqm,
-              netArea: konutDetails.net_sqm,
-              roomCount: konutDetails.room_count,
-              buildingAge: konutDetails.building_age,
-              floor: konutDetails.floor,
-              totalFloors: konutDetails.total_floors,
-              heating: konutDetails.heating,
-              hasBalcony: konutDetails.has_balcony,
-              hasElevator: konutDetails.has_elevator,
-              isFurnished: konutDetails.is_furnished,
-              allowsTrade: konutDetails.allows_trade,
-              isEligibleForCredit: konutDetails.is_eligible_for_credit
-            });
-          } else if (data.property_type === 'ticari' && data.ticari_details?.[0]) {
-            const ticariDetails = data.ticari_details[0];
-            Object.assign(formDataObj, {
-              grossArea: ticariDetails.gross_sqm,
-              netArea: ticariDetails.net_sqm,
-              roomCount: ticariDetails.room_count,
-              buildingAge: ticariDetails.building_age,
-              floor: ticariDetails.floor,
-              totalFloors: ticariDetails.total_floors,
-              heating: ticariDetails.heating,
-              isExchangeable: ticariDetails.allows_trade,
-              isEligibleForCredit: ticariDetails.is_eligible_for_credit
-            });
-          } else if (data.property_type === 'arsa' && data.arsa_details?.[0]) {
-            const arsaDetails = data.arsa_details[0];
-            Object.assign(formDataObj, {
-              sqm: arsaDetails.sqm,
-              kaks: arsaDetails.kaks,
-              isExchangeable: arsaDetails.allows_trade,
-              isEligibleForCredit: arsaDetails.is_eligible_for_credit
-            });
-          } else if (data.property_type === 'vasita' && data.vasita_details?.[0]) {
-            const vasitaDetails = data.vasita_details[0];
-            Object.assign(formDataObj, {
-              brand: vasitaDetails.brand,
-              model: vasitaDetails.model,
-              subModel: vasitaDetails.sub_model,
-              kilometer: vasitaDetails.kilometer,
-              fuelType: vasitaDetails.fuel_type,
-              transmission: vasitaDetails.transmission,
-              color: vasitaDetails.color,
-              hasWarranty: vasitaDetails.has_warranty,
-              hasDamageRecord: vasitaDetails.has_damage_record,
-              allowsTrade: vasitaDetails.allows_trade
-            });
-          }
-          
-          // Add address data if available
-          if (data.addresses && data.addresses[0]) {
-            const address = data.addresses[0];
-            Object.assign(formDataObj, {
-              province: address.province,
-              district: address.district,
-              neighborhood: address.neighborhood,
-              fullAddress: address.full_address
-            });
-          }
-          
-          // Add images if available
-          if (data.images && data.images.length > 0) {
-            // Convert Cloudinary images to the format expected by the form
-            const existingPhotos = data.images.map((img: any) => ({
-              id: img.cloudinary_id,
-              url: img.url,
-              preview: img.url,
-              isExisting: true
-            }));
-            
-            formDataObj.photos = existingPhotos;
-          }
-          
-          setFormData(formDataObj);
-          setIsLoading(false);
-        } catch (error) {
-          console.error('Error fetching listing:', error);
-          alert('İlan bilgileri yüklenirken bir hata oluştu.');
-          router.push('/admin/panel');
-        }
-      };
-      
+    if (!isEditMode) {
+      const newListingId = crypto.randomUUID();
+      setTempListingId(newListingId);
+      console.log(`Generated temporary listing ID: ${newListingId}`);
+    }
+  }, [isEditMode]);
+
+  useEffect(() => {
+    // If we're in edit mode, fetch the existing listing data
+    if (isEditMode && listingId) {
       fetchListingData();
     }
-  }, [isEditMode, listingId, router]);
+
+    // Add event listener for beforeunload
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    // Cleanup function
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // Clean up temporary listing if not submitted
+      cleanupTemporaryListing();
+    };
+  }, [isEditMode, listingId]);
+
+  // Function to clean up temporary listing and Cloudinary folder
+  const cleanupTemporaryListing = async () => {
+    if (!isEditMode && tempListingId && !isSubmitting) {
+      console.log(`Cleaning up temporary listing: ${tempListingId}`);
+      
+      try {
+        // Delete the temporary listing from Supabase and Cloudinary
+        const response = await fetch(`/api/listings/delete-temp?id=${tempListingId}${cloudinaryFolder ? `&folderPath=${encodeURIComponent(cloudinaryFolder)}` : ''}`, {
+          method: 'DELETE',
+        });
+        
+        if (response.ok) {
+          console.log(`Successfully cleaned up temporary listing: ${tempListingId}`);
+        } else {
+          console.error(`Failed to clean up temporary listing: ${tempListingId}`);
+        }
+      } catch (error) {
+        console.error(`Error cleaning up temporary listing: ${tempListingId}`, error);
+      }
+    }
+  };
+
+  // Fetch listing data if in edit mode
+  const fetchListingData = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/api/listings?id=${listingId}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch listing');
+      }
+      
+      const data = await response.json();
+      
+      // Set main category
+      setSelectedCategory(data.property_type);
+      
+      // Set listing status
+      setListingStatus(data.listing_status);
+      
+      // Set sub-category based on property type
+      if (data.property_type === 'konut' && data.konut_details?.[0]) {
+        setSelectedType(data.konut_details[0].konut_type);
+      } else if (data.property_type === 'ticari' && data.ticari_details?.[0]) {
+        setSelectedType(data.ticari_details[0].ticari_type);
+      } else if (data.property_type === 'arsa' && data.arsa_details?.[0]) {
+        setSelectedType(data.arsa_details[0].arsa_type);
+      } else if (data.property_type === 'vasita' && data.vasita_details?.[0]) {
+        setSelectedType(data.vasita_details[0].vasita_type);
+      }
+      
+      // Prepare form data based on property type
+      const formDataObj: Record<string, any> = {
+        title: data.title,
+        description: data.description,
+        price: data.price
+      };
+      
+      // Add property-specific fields
+      if (data.property_type === 'konut' && data.konut_details?.[0]) {
+        const konutDetails = data.konut_details[0];
+        Object.assign(formDataObj, {
+          grossArea: konutDetails.gross_sqm,
+          netArea: konutDetails.net_sqm,
+          roomCount: konutDetails.room_count,
+          buildingAge: konutDetails.building_age,
+          floor: konutDetails.floor,
+          totalFloors: konutDetails.total_floors,
+          heating: konutDetails.heating,
+          hasBalcony: konutDetails.has_balcony,
+          hasElevator: konutDetails.has_elevator,
+          isFurnished: konutDetails.is_furnished,
+          allowsTrade: konutDetails.allows_trade,
+          isEligibleForCredit: konutDetails.is_eligible_for_credit
+        });
+      } else if (data.property_type === 'ticari' && data.ticari_details?.[0]) {
+        const ticariDetails = data.ticari_details[0];
+        Object.assign(formDataObj, {
+          grossArea: ticariDetails.gross_sqm,
+          netArea: ticariDetails.net_sqm,
+          roomCount: ticariDetails.room_count,
+          buildingAge: ticariDetails.building_age,
+          floor: ticariDetails.floor,
+          totalFloors: ticariDetails.total_floors,
+          heating: ticariDetails.heating,
+          isExchangeable: ticariDetails.allows_trade,
+          isEligibleForCredit: ticariDetails.is_eligible_for_credit
+        });
+      } else if (data.property_type === 'arsa' && data.arsa_details?.[0]) {
+        const arsaDetails = data.arsa_details[0];
+        Object.assign(formDataObj, {
+          sqm: arsaDetails.sqm,
+          kaks: arsaDetails.kaks,
+          isExchangeable: arsaDetails.allows_trade,
+          isEligibleForCredit: arsaDetails.is_eligible_for_credit
+        });
+      } else if (data.property_type === 'vasita' && data.vasita_details?.[0]) {
+        const vasitaDetails = data.vasita_details[0];
+        Object.assign(formDataObj, {
+          brand: vasitaDetails.brand,
+          model: vasitaDetails.model,
+          subModel: vasitaDetails.sub_model,
+          kilometer: vasitaDetails.kilometer,
+          fuelType: vasitaDetails.fuel_type,
+          transmission: vasitaDetails.transmission,
+          color: vasitaDetails.color,
+          hasWarranty: vasitaDetails.has_warranty,
+          hasDamageRecord: vasitaDetails.has_damage_record,
+          allowsTrade: vasitaDetails.allows_trade
+        });
+      }
+      
+      // Add address data if available
+      if (data.addresses && data.addresses[0]) {
+        const address = data.addresses[0];
+        Object.assign(formDataObj, {
+          province: address.province,
+          district: address.district,
+          neighborhood: address.neighborhood,
+          fullAddress: address.full_address
+        });
+      }
+      
+      // Add images if available
+      if (data.images && data.images.length > 0) {
+        // Convert Cloudinary images to the format expected by the form
+        const existingPhotos = data.images.map((img: any) => ({
+          id: img.cloudinary_id,
+          url: img.url,
+          preview: img.url,
+          isExisting: true
+        }));
+        
+        formDataObj.photos = existingPhotos;
+      }
+      
+      setFormData(formDataObj);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error fetching listing:', error);
+      alert('İlan bilgileri yüklenirken bir hata oluştu.');
+      router.push('/admin/panel');
+    }
+  };
 
   // Calculate total steps based on property type
-  const totalSteps = selectedCategory === "vasita" ? 4 : 5;
+  const getTotalSteps = useCallback(() => {
+    if (selectedCategory === "vasita") {
+      return 5; // Category > Details > Photos > Preview > Confirm
+    }
+    return 6; // Category > Details > Address > Photos > Preview > Confirm
+  }, [selectedCategory]);
 
   // Step titles based on property type
-  const stepTitles = selectedCategory === "vasita" 
-    ? ["Kategori Seçimi", "Bilgi Girişi", "Fotoğraf Yükleme", "Önizleme"]
-    : ["Kategori Seçimi", "Bilgi Girişi", "Adres Bilgileri", "Fotoğraf Yükleme", "Önizleme"];
+  const stepTitles = useMemo(() => {
+    return selectedCategory === "vasita" 
+      ? ["Kategori Seçimi", "Bilgi Girişi", "Fotoğraf Yükleme", "Önizleme", "Onay"] 
+      : ["Kategori Seçimi", "Bilgi Girişi", "Adres Bilgileri", "Fotoğraf Yükleme", "Önizleme", "Onay"];
+  }, [selectedCategory]);
 
-  // Adım numaralarını gerçek adım numaralarına eşleyen fonksiyon
+  // Visual step number for the progress bar
   const getVisualStepNumber = (actualStep: number) => {
-    if (selectedCategory === "vasita" && actualStep > 2) {
-      // Vasıta için adım 3'ü atlıyoruz, bu yüzden adım 4 görsel olarak adım 3 olmalı
-      return actualStep - 1;
+    if (selectedCategory === "vasita") {
+      // Skip address step for vehicles
+      return actualStep;
     }
     return actualStep;
   };
 
-  // İlerleme çubuğu için gerçek ilerleme yüzdesini hesaplayan fonksiyon
+  // Calculate progress percentage for the progress bar
   const calculateProgressPercentage = () => {
-    if (selectedCategory === "vasita") {
-      // Vasıta için 4 adım var (1, 2, 4, 5) - adım 3 atlanıyor
-      const stepMapping = { 1: 0, 2: 1, 4: 2, 5: 3 };
-      const currentStepIndex = stepMapping[currentStep as keyof typeof stepMapping] || 0;
-      return (currentStepIndex / 3) * 100; // 3 = toplam adım sayısı - 1
+    // For the last step, always show 100%
+    if (currentStep === getTotalSteps()) {
+      return 100;
     } else {
-      // Diğer kategoriler için normal hesaplama
-      return ((currentStep - 1) / (totalSteps - 1)) * 100;
+      // Normal calculation for other steps
+      return ((currentStep - 1) / (getTotalSteps() - 1)) * 100;
     }
   };
 
@@ -726,20 +775,23 @@ export default function AddListing() {
     }
 
     return true;
-  }, [currentStep, selectedCategory, selectedType, formData, listingStatus]);
+  }, [currentStep, selectedCategory, selectedType, formData, listingStatus, getTotalSteps]);
 
   // Update validation state whenever relevant states change
   useEffect(() => {
     const isValid = validateCurrentStep();
     setIsCurrentStepValid(isValid);
-  }, [formData, currentStep, selectedCategory, selectedType, listingStatus, validateCurrentStep]);
+  }, [formData, currentStep, selectedCategory, selectedType, listingStatus, validateCurrentStep, getTotalSteps]);
 
   const handleNext = () => {
-    // For vasita, skip address step
-    if (currentStep === 2 && selectedCategory === "vasita") {
-      setCurrentStep(4); // Skip to photo upload (step 4)
-    } else {
+    if (currentStep < getTotalSteps() - 1) {
       setCurrentStep((prev) => prev + 1);
+    } else if (currentStep === getTotalSteps() - 1) {
+      // On the preview step, go to the final confirmation step
+      setCurrentStep(getTotalSteps());
+    } else {
+      // On the confirmation step, submit the form
+      handleSubmit();
     }
   };
 
@@ -756,8 +808,12 @@ export default function AddListing() {
     setShowCancelDialog(true);
   };
 
-  const confirmCancel = () => {
+  const confirmCancel = async () => {
     setShowCancelDialog(false);
+    
+    // Clean up temporary listing before navigating away
+    await cleanupTemporaryListing();
+    
     router.push("/admin/panel");
   };
 
@@ -766,7 +822,7 @@ export default function AddListing() {
   };
 
   const updateFormData = (data: any) => {
-    setFormData((prev) => ({ ...prev, ...data }));
+    setFormData((prev: any) => ({ ...prev, ...data }));
   };
 
   const openConfirmDialog = () => {
@@ -801,9 +857,8 @@ export default function AddListing() {
       if (isEditMode) {
         listingData.id = listingId;
       } else {
-        // For new listings, generate a UUID
-        const newListingId = crypto.randomUUID();
-        listingData.id = newListingId;
+        // Use the temporary listing ID we created at the beginning
+        listingData.id = tempListingId;
       }
       
       // Handle photos
@@ -907,6 +962,22 @@ export default function AddListing() {
           console.log(`Will rename folder from ${oldFolderPath} to ${newFolderPath}`);
           listingData.folderRename = {
             oldPath: oldFolderPath,
+            newPath: newFolderPath
+          };
+        } else if (!isEditMode && cloudinaryFolder) {
+          // For new listings, rename the temporary ID folder to title-based folder
+          const baseFolder = `ceyhun-emlak/${selectedCategory}`;
+          const sanitizedTitle = listingData.title.toLowerCase()
+            .replace(/[çğıöşü]/g, (c: string) => ({ 'ç': 'c', 'ğ': 'g', 'ı': 'i', 'ö': 'o', 'ş': 's', 'ü': 'u' })[c as keyof { 'ç': string; 'ğ': string; 'ı': string; 'ö': string; 'ş': string; 'ü': string; }] || c)
+            .replace(/\s+/g, '-')
+            .replace(/[^a-z0-9-]/g, '')
+            .substring(0, 50);
+          
+          const newFolderPath = `${baseFolder}/${sanitizedTitle}`;
+          
+          console.log(`Will rename folder from ${cloudinaryFolder} to ${newFolderPath}`);
+          listingData.folderRename = {
+            oldPath: cloudinaryFolder,
             newPath: newFolderPath
           };
         }
@@ -1020,23 +1091,57 @@ export default function AddListing() {
     );
   };
 
-  // Add event listener for beforeunload
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      // Only show confirmation if user has entered data beyond step 1
-      if (currentStep > 1) {
-        e.preventDefault();
-        e.returnValue = '';
-        return '';
-      }
-    };
+  const renderStep3Content = () => {
+    if (selectedCategory === "vasita") {
+      return (
+        <PhotoUpload 
+          formData={formData} 
+          updateFormData={updateFormData} 
+          selectedCategory={selectedCategory} 
+          tempListingId={tempListingId} 
+          setCloudinaryFolder={setCloudinaryFolder}
+        />
+      );
+    }
+    return <AddressForm formData={formData} updateFormData={updateFormData} />;
+  };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [currentStep]);
+  const renderStep4Content = () => {
+    if (selectedCategory === "vasita") {
+      return <ListingDetailPreview formData={formData} selectedCategory={selectedCategory} selectedType={selectedType} listingStatus="satilik" />;
+    }
+    return (
+      <PhotoUpload 
+        formData={formData} 
+        updateFormData={updateFormData} 
+        selectedCategory={selectedCategory} 
+        tempListingId={tempListingId} 
+        setCloudinaryFolder={setCloudinaryFolder}
+      />
+    );
+  };
+
+  const renderStep5Content = () => {
+    return (
+      <ListingDetailPreview 
+        formData={formData} 
+        selectedCategory={selectedCategory} 
+        selectedType={selectedType} 
+        listingStatus={selectedCategory === 'vasita' ? 'satilik' : listingStatus} 
+      />
+    );
+  };
+
+  // Add event listener for beforeunload
+  const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+    if (currentStep > 1 && !isSubmitting) {
+      // Standard text for beforeunload dialog
+      const message = 'İlan ekleme işleminiz tamamlanmadı. Çıkmak istediğinize emin misiniz?';
+      e.preventDefault();
+      e.returnValue = message;
+      return message;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -1143,7 +1248,7 @@ export default function AddListing() {
               </div>
             )}
 
-            {/* Step Content */}
+            {/* Main content area */}
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentStep}
@@ -1151,6 +1256,7 @@ export default function AddListing() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.3 }}
+                className="space-y-6"
               >
                 {currentStep === 1 && (
                   <CategorySelection 
@@ -1289,7 +1395,13 @@ export default function AddListing() {
                         </Button>
                       </div>
 
-                      <PhotoUpload formData={formData} updateFormData={updateFormData} />
+                      <PhotoUpload 
+                        formData={formData} 
+                        updateFormData={updateFormData} 
+                        selectedCategory={selectedCategory} 
+                        tempListingId={tempListingId} 
+                        setCloudinaryFolder={setCloudinaryFolder}
+                      />
                       
                       <div className="pt-8 flex justify-between">
                         <Button
@@ -1312,8 +1424,8 @@ export default function AddListing() {
                   </Card>
                 )}
                 
-                {/* Photo Upload (Step 3 for Vasıta, Step 4 for Emlak) */}
-                {currentStep === 4 && (
+                {/* Photo Upload (Step 4 for Emlak) */}
+                {currentStep === 4 && selectedCategory !== "vasita" && (
                   <Card className="border-2 border-[#FFB000]/20 shadow-xl">
                     <CardHeader className="border-b border-gray-100">
                       <CardTitle className="text-xl font-bold">
@@ -1340,7 +1452,13 @@ export default function AddListing() {
                         </Button>
                       </div>
 
-                      <PhotoUpload formData={formData} updateFormData={updateFormData} />
+                      <PhotoUpload 
+                        formData={formData} 
+                        updateFormData={updateFormData} 
+                        selectedCategory={selectedCategory} 
+                        tempListingId={tempListingId} 
+                        setCloudinaryFolder={setCloudinaryFolder}
+                      />
                       
                       <div className="pt-8 flex justify-between">
                         <Button
@@ -1363,12 +1481,12 @@ export default function AddListing() {
                   </Card>
                 )}
                 
-                {/* Preview (Final step) */}
-                {currentStep === 5 && (
+                {/* Preview (Step 4 for Vasita, Step 5 for Emlak) */}
+                {((currentStep === 4 && selectedCategory === "vasita") || (currentStep === 5 && selectedCategory !== "vasita")) && (
                   <Card className="border-2 border-[#FFB000]/20 shadow-xl">
                     <CardHeader className="border-b border-gray-100">
                       <CardTitle className="text-xl font-bold">
-                        Adım 5: Önizleme
+                        Adım {selectedCategory === "vasita" ? "4" : "5"}: Önizleme
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-6">
@@ -1383,19 +1501,10 @@ export default function AddListing() {
                         </Button>
                         
                         <Button
-                          onClick={openConfirmDialog}
-                          disabled={isSubmitting}
+                          onClick={handleNext}
                           className="bg-[#FFB000] hover:bg-[#FFB000]/80 text-black font-medium"
                         >
-                          {isSubmitting ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> İşleniyor...
-                            </>
-                          ) : (
-                            <>
-                              {isEditMode ? "İlanı Güncelle" : "İlanı Tamamla"} <Check className="ml-2 h-4 w-4" />
-                            </>
-                          )}
+                          Devam Et <ChevronRight className="ml-2 h-4 w-4" />
                         </Button>
                       </div>
 
@@ -1403,10 +1512,9 @@ export default function AddListing() {
                         formData={formData} 
                         selectedCategory={selectedCategory} 
                         selectedType={selectedType} 
-                        listingStatus={listingStatus} 
+                        listingStatus={selectedCategory === 'vasita' ? 'satilik' : listingStatus} 
                       />
                       
-                      {/* Bottom navigation buttons */}
                       <div className="pt-8 flex justify-between">
                         <Button
                           onClick={handlePrevious}
@@ -1417,22 +1525,62 @@ export default function AddListing() {
                         </Button>
                         
                         <Button
-                          onClick={openConfirmDialog}
-                          disabled={isSubmitting}
+                          onClick={handleNext}
                           className="bg-[#FFB000] hover:bg-[#FFB000]/80 text-black font-medium"
                         >
-                          {isSubmitting ? (
-                            <div className="flex items-center">
-                              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                              </svg>
-                              İlan {isEditMode ? 'Güncelleniyor' : 'Kaydediliyor'}...
-                            </div>
-                          ) : (
-                            <>{isEditMode ? 'İlanı Güncelle' : 'İlanı Tamamla'} <Check className="ml-2 h-4 w-4" /></>
-                          )}
+                          Devam Et <ChevronRight className="ml-2 h-4 w-4" />
                         </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+                
+                {/* Final Confirmation Step */}
+                {((currentStep === 5 && selectedCategory === "vasita") || (currentStep === 6 && selectedCategory !== "vasita")) && (
+                  <Card className="border-2 border-[#FFB000]/20 shadow-xl">
+                    <CardHeader className="border-b border-gray-100">
+                      <CardTitle className="text-xl font-bold">
+                        Adım {selectedCategory === "vasita" ? "5" : "6"}: İlan Onayı
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <div className="space-y-6">
+                        <div className="flex items-center justify-center">
+                          <Check className="h-16 w-16 text-green-500 mb-4" />
+                        </div>
+                        <h3 className="text-xl font-bold text-center">İlanınız Hazır!</h3>
+                        <p className="text-gray-600 text-center">
+                          İlanınız başarıyla hazırlandı. Onaylamak için aşağıdaki butona tıklayınız.
+                        </p>
+                        
+                        <div className="pt-6 flex flex-col space-y-4">
+                          <Button
+                            onClick={handleSubmit}
+                            disabled={isSubmitting}
+                            className="bg-[#FFB000] hover:bg-[#FFB000]/80 text-black w-full flex items-center justify-center gap-2"
+                          >
+                            {isSubmitting ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                İlan {isEditMode ? 'Güncelleniyor' : 'Kaydediliyor'}...
+                              </>
+                            ) : (
+                              <>
+                                {isEditMode ? 'İlanı Güncelle' : 'İlanı Tamamla'}
+                                <Check className="ml-2 h-4 w-4" />
+                              </>
+                            )}
+                          </Button>
+                          
+                          <Button
+                            variant="outline"
+                            onClick={handlePrevious}
+                            disabled={isSubmitting}
+                            className="w-full flex items-center justify-center gap-2"
+                          >
+                            <ChevronLeft className="mr-2 h-4 w-4" /> Geri Dön
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

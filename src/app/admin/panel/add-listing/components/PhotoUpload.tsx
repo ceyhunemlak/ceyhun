@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { X, Upload, AlertCircle, GripVertical } from "lucide-react";
 import Image from "next/image";
 import { useDrag, useDrop } from "react-dnd";
+import { Loader2 } from "lucide-react";
 
 interface PhotoUploadProps {
   formData: {
@@ -20,6 +21,9 @@ interface PhotoUploadProps {
     photos: Photo[];
     photosToDelete: string[];
   }>) => void;
+  selectedCategory: string;
+  tempListingId: string | null;
+  setCloudinaryFolder: (folder: string | null) => void;
 }
 
 interface Photo {
@@ -28,6 +32,8 @@ interface Photo {
   preview: string;
   file?: File;
   isExisting?: boolean;
+  status?: 'uploading' | 'uploaded' | 'error';
+  progress?: number;
 }
 
 // Sürüklenebilir fotoğraf kartı bileşeni
@@ -35,12 +41,14 @@ const DraggablePhotoCard = ({
   photo, 
   index, 
   movePhoto, 
-  removePhoto 
+  removePhoto,
+  retryUpload
 }: { 
   photo: Photo; 
   index: number; 
   movePhoto: (dragIndex: number, hoverIndex: number) => void; 
-  removePhoto: (index: number) => void; 
+  removePhoto: (index: number) => void;
+  retryUpload?: (index: number) => void;
 }) => {
   const ref = useRef<HTMLDivElement>(null);
   
@@ -95,19 +103,60 @@ const DraggablePhotoCard = ({
           Vitrin
         </div>
       )}
-      {photo.isExisting && (
+      
+      {/* Status indicators */}
+      {photo.status === 'uploading' && (
+        <div className="absolute top-0 right-10 bg-amber-500 text-white text-xs px-2 py-1">
+          Yükleniyor
+        </div>
+      )}
+      {photo.status === 'uploaded' && (
+        <div className="absolute top-0 right-10 bg-green-500 text-white text-xs px-2 py-1">
+          Yüklendi
+        </div>
+      )}
+      {photo.status === 'error' && (
+        <div className="absolute top-0 right-10 bg-red-500 text-white text-xs px-2 py-1">
+          Hata
+        </div>
+      )}
+      {photo.isExisting && !photo.status && (
         <div className="absolute top-0 right-10 bg-blue-500 text-white text-xs px-2 py-1">
           Mevcut
         </div>
       )}
-      <Button
-        variant="destructive"
-        size="icon"
-        className="absolute top-0 right-0 h-6 w-6 rounded-full m-1"
-        onClick={() => removePhoto(index)}
-      >
-        <X className="h-3 w-3" />
-      </Button>
+      
+      {/* Progress bar */}
+      {photo.status === 'uploading' && typeof photo.progress === 'number' && (
+        <div className="absolute bottom-8 left-0 right-0 h-2 bg-gray-200">
+          <div 
+            className="h-full bg-green-500 transition-all duration-300 ease-out"
+            style={{ width: `${photo.progress}%` }}
+          />
+        </div>
+      )}
+      
+      {/* Retry button for failed uploads */}
+      {photo.status === 'error' ? (
+        <Button
+          variant="destructive"
+          size="sm"
+          className="absolute top-0 right-0 h-6 rounded-sm m-1"
+          onClick={() => retryUpload ? retryUpload(index) : removePhoto(index)}
+        >
+          Yeniden Yükle
+        </Button>
+      ) : (
+        <Button
+          variant="destructive"
+          size="icon"
+          className="absolute top-0 right-0 h-6 w-6 rounded-full m-1"
+          onClick={() => removePhoto(index)}
+        >
+          <X className="h-3 w-3" />
+        </Button>
+      )}
+      
       <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-1 flex items-center justify-center cursor-move">
         <GripVertical className="h-4 w-4" />
       </div>
@@ -115,7 +164,13 @@ const DraggablePhotoCard = ({
   );
 };
 
-export default function PhotoUpload({ formData, updateFormData }: PhotoUploadProps) {
+export default function PhotoUpload({ 
+  formData, 
+  updateFormData, 
+  selectedCategory, 
+  tempListingId, 
+  setCloudinaryFolder 
+}: PhotoUploadProps) {
   const [photos, setPhotos] = useState<Photo[]>(formData.photos || []);
   const [photosToDelete, setPhotosToDelete] = useState<string[]>(formData.photosToDelete || []);
   const [error, setError] = useState<string | null>(null);
@@ -212,13 +267,146 @@ export default function PhotoUpload({ formData, updateFormData }: PhotoUploadPro
     const newPhotos = acceptedFiles.map(file => ({
       file,
       preview: URL.createObjectURL(file),
-      isExisting: false
+      isExisting: false,
+      status: 'uploading' as const,
+      progress: 0
     }));
     
     const updatedPhotos = [...photos, ...newPhotos];
     setPhotos(updatedPhotos);
     updateFormData({ photos: updatedPhotos, photosToDelete });
-  }, [photos, updateFormData, photosToDelete]);
+    
+    // If we have a temporary listing ID, upload photos immediately
+    if (tempListingId && selectedCategory) {
+      setIsUploading(true);
+      
+      // Upload each photo individually with progress tracking
+      const uploadPromises = newPhotos.map(async (photo, i) => {
+        const photoIndex = photos.length + i;
+        
+        if (!photo.file) return;
+        
+        try {
+          const photoFormData = new FormData();
+          photoFormData.append('file', photo.file);
+          photoFormData.append('propertyType', selectedCategory);
+          photoFormData.append('listingId', tempListingId);
+          photoFormData.append('index', photoIndex.toString());
+          
+          // Use XMLHttpRequest for progress tracking
+          const uploadWithProgress = () => {
+            return new Promise<{id: string, url: string}>((resolve, reject) => {
+              const xhr = new XMLHttpRequest();
+              
+              // Track upload progress
+              xhr.upload.addEventListener('progress', (event) => {
+                if (event.lengthComputable) {
+                  const progressPercent = Math.round((event.loaded / event.total) * 100);
+                  
+                  // Update the progress in the photos array
+                  setPhotos(currentPhotos => {
+                    const updatedPhotos = [...currentPhotos];
+                    if (updatedPhotos[photoIndex]) {
+                      updatedPhotos[photoIndex] = {
+                        ...updatedPhotos[photoIndex],
+                        progress: progressPercent
+                      };
+                    }
+                    return updatedPhotos;
+                  });
+                }
+              });
+              
+              // Handle completion
+              xhr.addEventListener('load', () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                  try {
+                    const response = JSON.parse(xhr.responseText);
+                    resolve(response);
+                  } catch (error) {
+                    reject(new Error('Invalid response from server'));
+                  }
+                } else {
+                  reject(new Error(`Upload failed with status ${xhr.status}`));
+                }
+              });
+              
+              // Handle errors
+              xhr.addEventListener('error', () => {
+                reject(new Error('Network error occurred during upload'));
+              });
+              
+              xhr.addEventListener('abort', () => {
+                reject(new Error('Upload was aborted'));
+              });
+              
+              // Open and send the request
+              xhr.open('POST', '/api/upload');
+              xhr.send(photoFormData);
+            });
+          };
+          
+          // Start the upload
+          const result = await uploadWithProgress();
+          
+          // Update the photo with the uploaded info
+          setPhotos(currentPhotos => {
+            const updatedPhotos = [...currentPhotos];
+            if (updatedPhotos[photoIndex]) {
+              updatedPhotos[photoIndex] = {
+                ...updatedPhotos[photoIndex],
+                id: result.id,
+                url: result.url,
+                isExisting: true,
+                status: 'uploaded',
+                progress: 100
+              };
+            }
+            return updatedPhotos;
+          });
+          
+          // Extract folder path from the first uploaded image
+          if (i === 0 && result.id) {
+            const parts = result.id.split('/');
+            parts.pop(); // Remove the last part (image_X)
+            const folderPath = parts.join('/');
+            setCloudinaryFolder(folderPath);
+          }
+          
+          return result;
+        } catch (error) {
+          console.error(`Error uploading photo ${i + 1}:`, error);
+          
+          // Mark the photo as failed
+          setPhotos(currentPhotos => {
+            const updatedPhotos = [...currentPhotos];
+            if (updatedPhotos[photoIndex]) {
+              updatedPhotos[photoIndex] = {
+                ...updatedPhotos[photoIndex],
+                status: 'error'
+              };
+            }
+            return updatedPhotos;
+          });
+        }
+      });
+      
+      try {
+        // Wait for all uploads to complete
+        await Promise.allSettled(uploadPromises);
+        
+        // Get the final state of photos and update form data
+        setPhotos(currentPhotos => {
+          updateFormData({ photos: currentPhotos, photosToDelete });
+          return currentPhotos;
+        });
+      } catch (error) {
+        console.error('Error in batch upload:', error);
+      } finally {
+        setIsUploading(false);
+      }
+    }
+  }, [photos, updateFormData, photosToDelete, tempListingId, selectedCategory, setCloudinaryFolder]);
   
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -267,8 +455,12 @@ export default function PhotoUpload({ formData, updateFormData }: PhotoUploadPro
           // If the first method fails, try the direct Cloudinary API
           try {
             console.log(`Trying direct Cloudinary API for ${photo.id}`);
+            // Make sure we're using the correct API endpoint format
             const cloudinaryResponse = await fetch(`/api/cloudinary/delete?id=${encodeURIComponent(photo.id)}`, {
               method: 'DELETE',
+              headers: {
+                'Content-Type': 'application/json',
+              },
             });
             
             const cloudinaryResult = await cloudinaryResponse.json();
@@ -277,7 +469,30 @@ export default function PhotoUpload({ formData, updateFormData }: PhotoUploadPro
               console.log(`Successfully deleted photo ${photo.id} from Cloudinary`);
             } else {
               console.error(`Failed to delete photo ${photo.id} from Cloudinary:`, cloudinaryResult.errors);
-              alert(`Fotoğraf silinirken bir hata oluştu. Lütfen tekrar deneyiniz.`);
+              
+              // Try one more method with POST and JSON body as a last resort
+              try {
+                console.log(`Trying POST method for Cloudinary API for ${photo.id}`);
+                const postResponse = await fetch(`/api/cloudinary/delete`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({ publicId: photo.id }),
+                });
+                
+                const postResult = await postResponse.json();
+                
+                if (postResult.success) {
+                  console.log(`Successfully deleted photo ${photo.id} from Cloudinary using POST method`);
+                } else {
+                  console.error(`Failed to delete photo ${photo.id} from Cloudinary using POST method:`, postResult.errors);
+                  alert(`Fotoğraf silinirken bir hata oluştu. Lütfen tekrar deneyiniz.`);
+                }
+              } catch (postError) {
+                console.error(`Error calling Cloudinary delete API with POST for ${photo.id}:`, postError);
+                alert(`Fotoğraf silinirken bir hata oluştu. Lütfen tekrar deneyiniz.`);
+              }
             }
           } catch (cloudinaryError) {
             console.error(`Error calling Cloudinary delete API for ${photo.id}:`, cloudinaryError);
@@ -327,6 +542,121 @@ export default function PhotoUpload({ formData, updateFormData }: PhotoUploadPro
     
     setPhotos(updatedPhotos);
     updateFormData({ photos: updatedPhotos, photosToDelete });
+  };
+  
+  // Function to retry uploading a failed photo
+  const retryUpload = async (index: number) => {
+    if (!tempListingId || !selectedCategory) return;
+    
+    const photo = photos[index];
+    if (!photo || !photo.file) return;
+    
+    // Update status to uploading
+    const updatedPhotos = [...photos];
+    updatedPhotos[index] = {
+      ...updatedPhotos[index],
+      status: 'uploading' as const,
+      progress: 0
+    };
+    setPhotos(updatedPhotos);
+    
+    try {
+      const photoFormData = new FormData();
+      photoFormData.append('file', photo.file);
+      photoFormData.append('propertyType', selectedCategory);
+      photoFormData.append('listingId', tempListingId);
+      photoFormData.append('index', index.toString());
+      
+      // Use XMLHttpRequest for progress tracking
+      const uploadWithProgress = () => {
+        return new Promise<{id: string, url: string}>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          
+          // Track upload progress
+          xhr.upload.addEventListener('progress', (event) => {
+            if (event.lengthComputable) {
+              const progressPercent = Math.round((event.loaded / event.total) * 100);
+              
+              // Update the progress in the photos array
+              setPhotos(currentPhotos => {
+                const updatedPhotos = [...currentPhotos];
+                if (updatedPhotos[index]) {
+                  updatedPhotos[index] = {
+                    ...updatedPhotos[index],
+                    progress: progressPercent
+                  };
+                }
+                return updatedPhotos;
+              });
+            }
+          });
+          
+          // Handle completion
+          xhr.addEventListener('load', () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              try {
+                const response = JSON.parse(xhr.responseText);
+                resolve(response);
+              } catch (error) {
+                reject(new Error('Invalid response from server'));
+              }
+            } else {
+              reject(new Error(`Upload failed with status ${xhr.status}`));
+            }
+          });
+          
+          // Handle errors
+          xhr.addEventListener('error', () => {
+            reject(new Error('Network error occurred during upload'));
+          });
+          
+          xhr.addEventListener('abort', () => {
+            reject(new Error('Upload was aborted'));
+          });
+          
+          // Open and send the request
+          xhr.open('POST', '/api/upload');
+          xhr.send(photoFormData);
+        });
+      };
+      
+      // Start the upload
+      const result = await uploadWithProgress();
+      
+      // Update the photo with the uploaded info
+      setPhotos(currentPhotos => {
+        const updatedPhotos = [...currentPhotos];
+        if (updatedPhotos[index]) {
+          updatedPhotos[index] = {
+            ...updatedPhotos[index],
+            id: result.id,
+            url: result.url,
+            isExisting: true,
+            status: 'uploaded' as const,
+            progress: 100
+          };
+        }
+        return updatedPhotos;
+      });
+      
+      // Update form data
+      updateFormData({ photos, photosToDelete });
+      
+    } catch (error) {
+      console.error(`Error retrying upload for photo ${index}:`, error);
+      
+      // Mark the photo as failed again
+      setPhotos(currentPhotos => {
+        const updatedPhotos = [...currentPhotos];
+        if (updatedPhotos[index]) {
+          updatedPhotos[index] = {
+            ...updatedPhotos[index],
+            status: 'error' as const
+          };
+        }
+        return updatedPhotos;
+      });
+    }
   };
 
   // Extract folder path from an existing photo ID
@@ -491,6 +821,7 @@ export default function PhotoUpload({ formData, updateFormData }: PhotoUploadPro
                     index={index}
                     movePhoto={movePhoto}
                     removePhoto={removePhoto}
+                    retryUpload={retryUpload}
                   />
                 ))}
               </div>
@@ -508,6 +839,17 @@ export default function PhotoUpload({ formData, updateFormData }: PhotoUploadPro
                 <> &quot;Mevcut&quot; olarak işaretli fotoğraflar daha önce yüklenmiş fotoğraflardır. Bunları silmek veya yerlerini değiştirmek güvenlidir.</>
               )}
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Only show the full-screen loader for bulk operations, not for individual uploads */}
+      {isUploading && photos.filter(p => !p.status).length > 0 && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl flex flex-col items-center">
+            <Loader2 className="h-10 w-10 text-[#FFB000] animate-spin mb-4" />
+            <p className="text-lg font-medium">Fotoğraflar hazırlanıyor...</p>
+            <p className="text-sm text-gray-500">Lütfen bekleyiniz...</p>
           </div>
         </div>
       )}
