@@ -198,11 +198,11 @@ export default function PhotoUpload({ formData, updateFormData }: PhotoUploadPro
       'image/png': [],
       'image/webp': []
     },
-    maxSize: 5 * 1024 * 1024, // 5MB
+    maxSize: 10 * 1024 * 1024, // 10MB
     onDropRejected: (fileRejections) => {
       const errors = fileRejections.map(rejection => {
         if (rejection.errors[0].code === 'file-too-large') {
-          return `${rejection.file.name} boyutu çok büyük (max: 5MB)`;
+          return `${rejection.file.name} boyutu çok büyük (max: 10MB)`;
         }
         if (rejection.errors[0].code === 'file-invalid-type') {
           return `${rejection.file.name} desteklenmeyen dosya formatı`;
@@ -425,7 +425,7 @@ export default function PhotoUpload({ formData, updateFormData }: PhotoUploadPro
             <Upload className="h-10 w-10 text-gray-400" />
             <h3 className="text-lg font-medium">Fotoğrafları buraya sürükleyin</h3>
             <p className="text-sm text-gray-500">
-              veya dosya seçmek için tıklayın (JPG, PNG, WEBP - max: 5MB)
+              veya dosya seçmek için tıklayın (JPG, PNG, WEBP - max: 10MB)
             </p>
             {isDragActive && (
               <p className="text-sm font-medium text-[#FFB000]">Dosyaları buraya bırakın...</p>
