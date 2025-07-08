@@ -33,7 +33,21 @@ export const uploadToCloudinary = async (
       overwrite: true,
       resource_type: 'auto' as 'auto',
       use_filename: false,
-      unique_filename: false
+      unique_filename: false,
+      // Optimization options for large images
+      quality: 'auto', // Automatic quality optimization
+      fetch_format: 'auto', // Automatic format optimization
+      transformation: [
+        { 
+          quality: 'auto:good',
+          fetch_format: 'auto',
+          dpr: 'auto',
+          // Only resize if the image is extremely large
+          width: 2000, 
+          height: 2000,
+          crop: 'limit'
+        }
+      ]
     };
     
     // Upload to Cloudinary

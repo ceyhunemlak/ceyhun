@@ -179,6 +179,35 @@ export default function PhotoUpload({ formData, updateFormData }: PhotoUploadPro
       acceptedFiles = acceptedFiles.slice(0, remainingSlots);
     }
     
+    // Check for large dimension photos
+    for (const file of acceptedFiles) {
+      try {
+        // Create image to check dimensions
+        const img = document.createElement('img') as HTMLImageElement;
+        const objectUrl = URL.createObjectURL(file);
+        
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => {
+            // Check if dimensions are extremely large
+            if (img.width > 8000 || img.height > 8000) {
+              reject(new Error(`${file.name} boyutları çok büyük (${img.width}x${img.height}). Lütfen daha küçük bir fotoğraf yükleyin.`));
+            } else {
+              resolve();
+            }
+          };
+          img.onerror = () => reject(new Error(`${file.name} fotoğrafı yüklenemedi.`));
+          img.src = objectUrl;
+        }).finally(() => {
+          URL.revokeObjectURL(objectUrl);
+        });
+      } catch (err) {
+        if (err instanceof Error) {
+          setError(err.message);
+          return;
+        }
+      }
+    }
+    
     // Process accepted files
     const newPhotos = acceptedFiles.map(file => ({
       file,

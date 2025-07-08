@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadToCloudinary, cloudinary } from '@/lib/cloudinary';
 
+// Set larger request size limit for this route
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '20mb',
+    },
+    responseLimit: false,
+  },
+};
+
 // Helper function to sanitize title for use in folder names
 const sanitizeTitle = (title: string): string => {
   // Replace Turkish characters with their ASCII equivalents
