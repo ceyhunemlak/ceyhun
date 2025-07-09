@@ -493,7 +493,6 @@ export default function AddListing() {
   const [tempListingId, setTempListingId] = useState<string | null>(null);
   const [cloudinaryFolder, setCloudinaryFolder] = useState<string | null>(null);
   const [isCurrentStepValid, setIsCurrentStepValid] = useState(false);
-  const [submissionStatus, setSubmissionStatus] = useState('');
 
   // Generate a temporary listing ID on component mount
   useEffect(() => {
@@ -858,7 +857,6 @@ export default function AddListing() {
     
     try {
       // Common data for both create and update
-      setSubmissionStatus('İlan bilgileri hazırlanıyor...');
       const listingData: any = {
         title: formData.title,
         description: formData.description,
@@ -878,7 +876,6 @@ export default function AddListing() {
       // Handle photos
       let uploadedPhotos = [];
       if (formData.photos && formData.photos.length > 0) {
-        setSubmissionStatus('Fotoğraflar işleniyor...');
         // Check if we're in edit mode and title has changed
         let shouldRenameFolder = false;
         let oldFolderPath = null;
@@ -903,11 +900,24 @@ export default function AddListing() {
         
         console.log(`Processing photos: ${newPhotos.length} new, ${existingPhotos.length} existing`);
         
+        // Check if photos have already been uploaded during the form process
+        // If they have status 'uploaded' or have an id but aren't marked as existing, they've already been uploaded
+        const alreadyUploadedPhotos = newPhotos.filter((photo: any) => photo.status === 'uploaded' || (photo.id && !photo.isExisting));
+        const photosNeedingUpload = newPhotos.filter((photo: any) => photo.status !== 'uploaded' && !photo.id);
+        
+        console.log(`Photos already uploaded: ${alreadyUploadedPhotos.length}, Photos needing upload: ${photosNeedingUpload.length}`);
+        
+        // Use already uploaded photos directly
+        const alreadyUploadedPhotoData = alreadyUploadedPhotos.map((photo: any) => ({
+          id: photo.id,
+          url: photo.url || '',
+          preview: photo.preview,
+          isExisting: false
+        }));
+        
         // Upload new photos if there are any and if we have the upload function
-        // Only process photos that haven't been uploaded yet (performance improvement)
-        if (newPhotos.length > 0 && formData.uploadPhotosToCloudinary) {
-          console.log(`Yeni fotoğraflar yükleniyor (${newPhotos.length} adet), edit mode: ${isEditMode ? 'evet' : 'hayır'}, listing ID: ${listingData.id}`);
-          setSubmissionStatus(`Yeni fotoğraflar yükleniyor (${newPhotos.length} adet)...`);
+        if (photosNeedingUpload.length > 0 && formData.uploadPhotosToCloudinary) {
+          console.log(`Yeni fotoğraflar yükleniyor (${photosNeedingUpload.length} adet), edit mode: ${isEditMode ? 'evet' : 'hayır'}, listing ID: ${listingData.id}`);
           
           // Make sure title is available for folder naming
           const defaultTitle = `${selectedCategory}-${selectedType}${listingStatus ? `-${listingStatus}` : ''}`;
@@ -921,14 +931,14 @@ export default function AddListing() {
             console.error('Fotoğraf yükleme hatası:', error);
             alert('Fotoğraflar yüklenirken bir hata oluştu. Lütfen tekrar deneyiniz.');
             setIsSubmitting(false);
-            setSubmissionStatus('');
             return;
           }
         } else {
-          console.log(`Yeni fotoğraf yok veya tüm fotoğraflar zaten yüklenmiş. Yeniden yükleme işlemi atlanıyor. Mevcut fotoğraflar: ${existingPhotos.length}`);
+          console.log('Yeni fotoğraf yok veya tüm fotoğraflar zaten yüklenmiş.');
+          // Use the already uploaded photos
+          uploadedPhotos = alreadyUploadedPhotoData;
         }
         
-        setSubmissionStatus('Fotoğraf bilgileri hazırlanıyor...');
         // Include existing photos in the final photos array
         const existingPhotoData = existingPhotos.map((photo: any) => ({
           id: photo.id,
@@ -949,7 +959,7 @@ export default function AddListing() {
           }
         }
         
-        // Combine existing and newly uploaded photos
+        // Combine existing, already uploaded, and newly uploaded photos
         listingData.photos = [...uniqueExistingPhotos, ...uploadedPhotos];
         
         console.log(`Final photos count: ${listingData.photos.length}`);
@@ -968,7 +978,6 @@ export default function AddListing() {
         
         // If we need to rename the folder, add this information
         if (shouldRenameFolder && oldFolderPath) {
-          setSubmissionStatus('Klasör bilgileri güncelleniyor...');
           // Create the new folder path with the updated title
           const parts = oldFolderPath.split('/');
           const baseFolder = parts.slice(0, -1).join('/'); // Get the base folder path
@@ -980,18 +989,14 @@ export default function AddListing() {
           
           const newFolderPath = `${baseFolder}/${sanitizedTitle}`;
           
-          // Only rename if paths are actually different (performance improvement)
-          if (oldFolderPath !== newFolderPath) {
-            console.log(`Will rename folder from ${oldFolderPath} to ${newFolderPath}`);
-            listingData.folderRename = {
-              oldPath: oldFolderPath,
-              newPath: newFolderPath
-            };
-          } else {
-            console.log(`Folder paths are identical (${oldFolderPath}), skipping rename operation`);
-          }
+          // Always add folder rename info in edit mode, even if paths are the same
+          // This ensures the backend will process the rename operation and update database records
+          console.log(`Will rename folder from ${oldFolderPath} to ${newFolderPath}`);
+          listingData.folderRename = {
+            oldPath: oldFolderPath,
+            newPath: newFolderPath
+          };
         } else if (!isEditMode && cloudinaryFolder) {
-          setSubmissionStatus('Klasör bilgileri oluşturuluyor...');
           // For new listings, rename the temporary ID folder to title-based folder
           const baseFolder = `ceyhun-emlak/${selectedCategory}`;
           const sanitizedTitle = listingData.title.toLowerCase()
@@ -1011,7 +1016,6 @@ export default function AddListing() {
       }
       
       // Add category-specific fields
-      setSubmissionStatus('İlan detayları hazırlanıyor...');
       if (selectedCategory === 'konut') {
         listingData.konut_type = handleEnumField(selectedType);
         listingData.gross_sqm = parseFloat(formData.grossArea);
@@ -1068,7 +1072,6 @@ export default function AddListing() {
       }
       
       // 4. Send the data to the appropriate API endpoint
-      setSubmissionStatus('İlan veritabanına kaydediliyor...');
       const endpoint = isEditMode ? '/api/listings/update' : '/api/listings';
       const method = isEditMode ? 'PUT' : 'POST';
       
@@ -1084,15 +1087,12 @@ export default function AddListing() {
         throw new Error(`Failed to ${isEditMode ? 'update' : 'create'} listing`);
       }
       
-      setSubmissionStatus('İlan başarıyla kaydedildi, yönlendiriliyor...');
-      
       // 5. Redirect to admin panel after successful submission with query parameter to show all listings
       router.push("/admin/panel?filter=all");
     } catch (error) {
       console.error(`Error ${isEditMode ? 'updating' : 'submitting'} listing:`, error);
       alert(`İlan ${isEditMode ? 'güncellenirken' : 'kaydedilirken'} bir hata oluştu. Lütfen tekrar deneyiniz.`);
       setIsSubmitting(false);
-      setSubmissionStatus('');
     }
   };
 
@@ -1155,48 +1155,12 @@ export default function AddListing() {
 
   const renderStep5Content = () => {
     return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="space-y-8"
-      >
-        <ListingDetailPreview 
-          formData={formData} 
-          selectedCategory={selectedCategory}
-          selectedType={selectedType}
-          listingStatus={listingStatus}
-        />
-        
-        <div className="pt-6 space-y-4">
-          <Button
-            type="button"
-            onClick={openConfirmDialog}
-            className="w-full bg-[#FFB000] hover:bg-[#FFB000]/90 text-black"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <div className="flex items-center justify-center space-x-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>İşlem devam ediyor...</span>
-              </div>
-            ) : (
-              "İlanı Tamamla"
-            )}
-          </Button>
-          
-          {/* İlerleme mesajını gösterme */}
-          {isSubmitting && submissionStatus && (
-            <div className="mt-4 p-4 bg-amber-50 border border-amber-100 rounded-md">
-              <div className="flex flex-col items-center justify-center">
-                <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
-                  <div className="bg-[#FFB000] h-2.5 rounded-full animate-pulse" style={{ width: '100%' }}></div>
-                </div>
-                <p className="text-sm text-amber-800">{submissionStatus}</p>
-              </div>
-            </div>
-          )}
-        </div>
-      </motion.div>
+      <ListingDetailPreview 
+        formData={formData} 
+        selectedCategory={selectedCategory} 
+        selectedType={selectedType} 
+        listingStatus={selectedCategory === 'vasita' ? 'satilik' : listingStatus} 
+      />
     );
   };
 
