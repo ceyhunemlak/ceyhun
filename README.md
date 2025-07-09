@@ -1,6 +1,6 @@
 # Ceyhun Gayrimenkul Emlak
 
-Tokat Merkez'de faaliyet gösteren emlak ağırlıklı gayrimenkul şirketi için geliştirilen web sitesi.
+Tokat'ın güvenilir emlak ofisi. Satılık-kiralık ev, daire, arsa ve iş yeri ilanları.
 
 ## Kurulum
 

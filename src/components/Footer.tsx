@@ -29,7 +29,7 @@ const Footer = () => {
               />
             </div>
             <p className="text-muted-foreground text-sm sm:text-base mb-4 sm:mb-6">
-              Tokat Merkez'de faaliyet gösteren emlak ağırlıklı gayrimenkul şirketi. 
+            Tokat'ın güvenilir emlak ofisi. Satılık-kiralık ev, daire, arsa ve iş yeri ilanları. 
               Güvenilir hizmet anlayışıyla sektörün öncü firmalarındandır.
             </p>
             <div className="flex space-x-3 sm:space-x-4">
