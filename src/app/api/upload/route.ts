@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadToCloudinary, cloudinary } from '@/lib/cloudinary';
 
-// Set larger request size limit for this route
+// Set larger request size limit for this route (App Router format)
 export const config = {
   api: {
-    bodyParser: {
-      sizeLimit: '20mb',
-    },
-    responseLimit: false,
+    // Next.js App Router için doğru konfigürasyon formatı
+    bodyParser: false,
+    responseLimit: '50mb', // Yanıt boyutu sınırı
   },
 };
 

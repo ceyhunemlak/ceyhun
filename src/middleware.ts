@@ -6,6 +6,14 @@ export async function middleware(request: NextRequest) {
   const url = request.nextUrl;
   const pathname = url.pathname;
   
+  // API isteği ise ve upload endpoint'ine ise sınırları ayarla
+  if (pathname === '/api/upload') {
+    // Set custom header for Vercel to recognize larger file upload
+    const response = NextResponse.next();
+    response.headers.set('x-vercel-max-body-size', '50mb');
+    return response;
+  }
+  
   // Check if the path is an ID-based listing URL
   if (pathname.startsWith('/ilan/')) {
     const id = pathname.split('/')[2];
@@ -40,7 +48,7 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-// Only run the middleware on listing pages
+// Only run the middleware on listing pages and API routes
 export const config = {
-  matcher: '/ilan/:path*',
+  matcher: ['/ilan/:path*', '/api/upload'],
 }; 

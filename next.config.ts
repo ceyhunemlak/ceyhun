@@ -10,14 +10,22 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true, // Derleme sırasında eslint hatalarını görmezden gel
   },
-  serverActions: {
-    bodySizeLimit: '20mb', // Fotoğraf yükleme limiti 10MB için 20MB'lık buffer
+  experimental: {
+    serverComponentsExternalPackages: ['cloudinary'],
   },
-  api: {
-    bodyParser: {
-      sizeLimit: '20mb', // API rotaları için dosya boyutu limiti
-    },
-    responseLimit: false,
+  // Vercel'de yükleme boyut limitini artırma
+  async headers() {
+    return [
+      {
+        source: '/api/upload',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'multipart/form-data',
+          },
+        ],
+      },
+    ];
   },
 };
 
