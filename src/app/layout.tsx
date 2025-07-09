@@ -29,8 +29,25 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Ceyhun Gayrimenkul Emlak",
-  description: "Tokat Merkez'de faaliyet gösteren emlak ağırlıklı gayrimenkul şirketi",
+  title: "Ceyhun Gayrimenkul  | Tokat'ta Emlak ve Gayrimenkul",
+  description: "Tokat'ın güvenilir emlak ofisi. Satılık-kiralık ev, daire, arsa ve iş yeri ilanları.",
+  keywords: "emlak, gayrimenkul, Tokat emlak, konut, iş yeri, arsa, otomotiv, satılık, kiralık, daire, villa, arazi",
+  openGraph: {
+    type: "website",
+    locale: "tr_TR",
+    url: "https://www.ceyhundan.com",
+    title: "Ceyhun Gayrimenkul Emlak | Tokat'ta Emlak ve Gayrimenkul",
+    description: "Tokat'ın güvenilir emlak ofisi. Satılık-kiralık ev, daire, arsa ve iş yeri ilanları.",
+    siteName: "Ceyhun Gayrimenkul Emlak",
+    images: [
+      {
+        url: "/images/logo_black.png",
+        width: 1200,
+        height: 630,
+        alt: "Ceyhun Gayrimenkul Emlak Logo",
+      },
+    ],
+  }
 };
 
 export default function RootLayout({
