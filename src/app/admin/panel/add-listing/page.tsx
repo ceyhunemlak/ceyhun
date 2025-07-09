@@ -584,6 +584,7 @@ export default function AddListing() {
       
       // Prepare form data based on property type
       const formDataObj: Record<string, any> = {
+        id: data.id, // Düzenleme modunda id'yi formData'da saklama - kritik!
         title: data.title,
         description: data.description,
         price: data.price
@@ -901,21 +902,24 @@ export default function AddListing() {
         
         // Upload new photos if there are any and if we have the upload function
         if (newPhotos.length > 0 && formData.uploadPhotosToCloudinary) {
-          console.log('Uploading new photos to Cloudinary');
+          console.log(`Yeni fotoğraflar yükleniyor (${newPhotos.length} adet), edit mode: ${isEditMode ? 'evet' : 'hayır'}, listing ID: ${listingData.id}`);
           
           // Make sure title is available for folder naming
           const defaultTitle = `${selectedCategory}-${selectedType}${listingStatus ? `-${listingStatus}` : ''}`;
           listingData.title = listingData.title || defaultTitle || `listing-${listingData.id}`;
           
           try {
+            console.log('uploadPhotosToCloudinary çağrılıyor, mevcut klasör korunmalı...');
             uploadedPhotos = await formData.uploadPhotosToCloudinary(selectedCategory, listingData.id);
-            console.log(`Successfully uploaded ${uploadedPhotos.length} photos`);
+            console.log(`Başarıyla ${uploadedPhotos.length} fotoğraf yüklendi, ID'ler:`, uploadedPhotos.map((p: any) => p.id));
           } catch (error) {
-            console.error('Error uploading photos:', error);
+            console.error('Fotoğraf yükleme hatası:', error);
             alert('Fotoğraflar yüklenirken bir hata oluştu. Lütfen tekrar deneyiniz.');
             setIsSubmitting(false);
             return;
           }
+        } else {
+          console.log(`Yeni fotoğraf yok veya uploadPhotosToCloudinary fonksiyonu mevcut değil. Mevcut fotoğraflar: ${existingPhotos.length}`);
         }
         
         // Include existing photos in the final photos array
@@ -1066,8 +1070,8 @@ export default function AddListing() {
         throw new Error(`Failed to ${isEditMode ? 'update' : 'create'} listing`);
       }
       
-      // 5. Redirect to admin panel after successful submission
-      router.push("/admin/panel");
+      // 5. Redirect to admin panel after successful submission with query parameter to show all listings
+      router.push("/admin/panel?filter=all");
     } catch (error) {
       console.error(`Error ${isEditMode ? 'updating' : 'submitting'} listing:`, error);
       alert(`İlan ${isEditMode ? 'güncellenirken' : 'kaydedilirken'} bir hata oluştu. Lütfen tekrar deneyiniz.`);

@@ -9,31 +9,6 @@ export const config = {
   maxDuration: 60,
 };
 
-// Helper function to sanitize title for use in folder names
-const sanitizeTitle = (title: string): string => {
-  // Replace Turkish characters with their ASCII equivalents
-  const turkishChars: Record<string, string> = {
-    'ç': 'c', 'Ç': 'C', 'ğ': 'g', 'Ğ': 'G', 'ı': 'i', 'İ': 'I',
-    'ö': 'o', 'Ö': 'O', 'ş': 's', 'Ş': 'S', 'ü': 'u', 'Ü': 'U'
-  };
-  
-  let sanitized = title.toLowerCase();
-  
-  // Replace Turkish characters
-  Object.entries(turkishChars).forEach(([turkishChar, asciiChar]) => {
-    sanitized = sanitized.replace(new RegExp(turkishChar, 'g'), asciiChar);
-  });
-  
-  // Replace spaces with hyphens and remove special characters
-  sanitized = sanitized
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '')
-    .replace(/-+/g, '-')
-    .substring(0, 50); // Limit length to 50 characters
-  
-  return sanitized;
-};
-
 // Cache for folder names to ensure all photos from the same listing go to the same folder
 const folderCache: Record<string, string> = {};
 
@@ -62,7 +37,8 @@ export async function POST(request: NextRequest) {
     const listingId = formData.get('listingId') as string;
     const index = formData.get('index') as string;
     const title = formData.get('title') as string;
-    const existingFolder = formData.get('existingFolder') as string;
+    let existingFolder = formData.get('existingFolder') as string;
+    const currentListingId = formData.get('currentListingId') as string;
 
     if (!file || !propertyType || !listingId) {
       return NextResponse.json(
@@ -71,7 +47,57 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`Uploading file for listing ${listingId}, index ${index}, fileSize: ${Math.round(file.size / 1024)} KB, existingFolder: ${existingFolder || 'none'}`);
+    console.log(`Uploading file for listing ${listingId}, index ${index}, fileSize: ${Math.round(file.size / 1024)} KB, existingFolder: ${existingFolder || 'none'}, currentListingId: ${currentListingId || 'none'}`);
+    
+    // Düzenleme modunda ve mevcut ID varsa, bunu listingId olarak kullanmalıyız
+    const effectiveListingId = currentListingId || listingId;
+    
+    // Eğer currentListingId varsa, bu düzenleme modudur ve önce ilgili klasörü bulmayı denemeliyiz
+    if (currentListingId && !existingFolder) {
+      try {
+        console.log(`Düzenleme modu, id: ${currentListingId} için klasör aranıyor...`);
+        // Klasörü bulmak için Cloudinary'de bu ID'ye ait önceki yüklemeleri kontrol edelim
+        const result = await cloudinary.api.resources({
+          type: 'upload',
+          prefix: `ceyhun-emlak/${propertyType}`,
+          max_results: 500,
+          tags: true
+        });
+        
+        // İlanın ID'sini içeren klasörleri arayalım
+        for (const resource of result.resources) {
+          if (resource.public_id.includes(`ceyhun-emlak/${propertyType}/`)) {
+            const pathParts = resource.public_id.split('/');
+            // Klasör yolu olacak şekilde son kısmı (dosya adı) çıkaralım
+            pathParts.pop();
+            const possibleFolder = pathParts.join('/');
+            
+            console.log(`Düzenleme modunda olası klasör bulundu: ${possibleFolder}`);
+            existingFolder = possibleFolder;
+            break;
+          }
+        }
+        
+        if (existingFolder) {
+          console.log(`Düzenleme modu için klasör bulundu: ${existingFolder}`);
+        } else {
+          console.log(`Düzenleme modu için klasör bulunamadı, başlıktan yeni klasör oluşturulacak`);
+          // Klasör bulunamadıysa ve title varsa, başlıktan yeni bir klasör oluşturalım
+          if (title) {
+            console.log(`İlan başlığından yeni klasör oluşturuluyor: ${title}`);
+            // Klasör oluşturma işlemi aşağıdaki else bloğunda yapılacak
+            // burada sadece existingFolder'ı null bırakıyoruz
+          }
+        }
+      } catch (error) {
+        console.error(`Düzenleme modu klasör arama hatası: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+    
+    // Düzenleme modunda ve mevcut klasör yolu varsa, bunu mutlaka kullanmalıyız
+    if (existingFolder) {
+      console.log(`Düzenleme modu: Mevcut klasöre yüklenecek: ${existingFolder}`);
+    }
 
     // Process file with chunk-based approach for large files
     const bytes = await file.arrayBuffer();
@@ -89,36 +115,71 @@ export async function POST(request: NextRequest) {
     // Determine folder path - existing logic...
     let folder: string;
     
-    // If existing folder is provided, use it
+    // If existing folder is provided, use it - this is crucial for edit mode
     if (existingFolder) {
       folder = existingFolder;
       console.log(`Using provided existing folder: ${folder}`);
       
       // Update cache for this listing
-      const cacheKey = `${propertyType}_${listingId}`;
+      const cacheKey = `${propertyType}_${effectiveListingId}`;
       folderCache[cacheKey] = folder;
+      
+      // Klasörün Cloudinary'de var olduğundan emin olmak için kontrol
+      try {
+        const result = await cloudinary.api.resources({
+          type: 'upload',
+          prefix: folder,
+          max_results: 1
+        });
+        
+        if (result.resources.length > 0) {
+          console.log(`Mevcut klasör ${folder} doğrulandı, bu klasöre yükleme yapılacak`);
+        } else {
+          console.log(`Uyarı: Mevcut klasör ${folder} Cloudinary'de bulunamadı, ancak yine de bu yolu kullanmaya devam ediyoruz`);
+        }
+      } catch (error) {
+        console.error(`Klasör kontrol hatası (devam ediyoruz): ${error instanceof Error ? error.message : String(error)}`);
+      }
     } else {
-      // Check if we already have a folder for this listing
-      const cacheKey = `${propertyType}_${listingId}`;
+      // If no existing folder, check cache first
+      const cacheKey = `${propertyType}_${effectiveListingId}`;
       folder = folderCache[cacheKey];
       
-      // If no folder in cache, create a new one
       if (!folder) {
-        // Sanitize title for folder name
-        const sanitizedTitle = title ? sanitizeTitle(title) : listingId;
+        console.log(`No folder in cache for ${cacheKey}, creating new folder path`);
         
-        // Base folder path
+        // Base path for all uploads
         const baseFolder = `ceyhun-emlak/${propertyType}`;
         
-        // Check if folder with this title already exists
-        let folderSuffix = '';
+        // Create a sanitized title slug for the folder name
+        // Eğer başlık yoksa, rastgele bir ID oluştur
+        let sanitizedTitle = '';
+        if (title) {
+          // Başlığı temizle ve klasör adı formatına dönüştür
+          sanitizedTitle = title
+            .toLowerCase()
+            .replace(/[^\p{L}\p{N}\s-]/gu, '') // Remove special characters but keep Turkish letters
+            .replace(/\s+/g, '-')              // Replace spaces with hyphens
+            .replace(/-+/g, '-')               // Replace multiple hyphens with single hyphen
+            .substring(0, 50);                 // Limit length to 50 characters
+            
+          if (!sanitizedTitle) {
+            sanitizedTitle = `listing-${Date.now().toString().slice(-6)}`;
+          }
+        } else {
+          sanitizedTitle = `listing-${Date.now().toString().slice(-6)}`;
+        }
+        
+        console.log(`Created sanitized title slug: ${sanitizedTitle}`);
+        
+        // Check if folder already exists and add suffix if needed
         let folderExists = true;
         let attemptCount = 0;
+        let folderSuffix = '';
+        let fullFolderPath = '';
         
-        // Try to find a unique folder name
         while (folderExists && attemptCount < 10) {
-          const folderName = sanitizedTitle + folderSuffix;
-          const fullFolderPath = `${baseFolder}/${folderName}`;
+          fullFolderPath = `${baseFolder}/${sanitizedTitle}${folderSuffix}`;
           
           try {
             // Check if folder exists in Cloudinary
@@ -176,7 +237,10 @@ export async function POST(request: NextRequest) {
     }
     
     // Create unique public ID for the image
-    const publicId = `image_${index}`;
+    // index değerine timestamp ekleyerek benzersiz olmasını sağlayalım
+    // bu şekilde aynı klasöre yüklerken üzerine yazmayı önleyebiliriz
+    const timestamp = Date.now().toString().slice(-6);
+    const publicId = `image_${index}_${timestamp}`;
     
     console.log(`Uploading to folder: ${folder}, publicId: ${publicId}`);
 

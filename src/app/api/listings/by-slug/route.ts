@@ -18,7 +18,10 @@ export async function GET(request: NextRequest) {
     }
     
     // Fetch all listings and find the one with a matching slug
-    const { data: listings, error: fetchError } = await supabase
+    // URL parametrelerini kontrol et, admin panelden geliyorsa tüm ilanları göster
+    const isAdminRequest = request.headers.get('referer')?.includes('/admin');
+    
+    let query = supabase
       .from('listings')
       .select(`
         *,
@@ -28,8 +31,15 @@ export async function GET(request: NextRequest) {
         arsa_details(*),
         vasita_details(*),
         addresses(*)
-      `)
-      .eq('is_active', true);
+      `);
+    
+    // Admin panelinden yapılan isteklerde tüm ilanları göster
+    // Diğer sayfalarda (client) sadece aktif ilanları göster
+    if (!isAdminRequest) {
+      query = query.eq('is_active', true);
+    }
+    
+    const { data: listings, error: fetchError } = await query;
       
     if (fetchError) {
       console.error('Supabase error when fetching listings:', fetchError);

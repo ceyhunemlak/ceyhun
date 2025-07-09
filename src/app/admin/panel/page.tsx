@@ -118,6 +118,15 @@ export default function AdminPanel() {
           topPerforming
         });
         
+        // Check URL parameters for filter settings
+        const urlParams = new URLSearchParams(window.location.search);
+        const filterParam = urlParams.get('filter');
+        
+        // If filter=all is in the URL, show all listings
+        if (filterParam === 'all') {
+          setActiveStatusFilter('all');
+        }
+        
         setIsLoading(false);
       } catch (error) {
         console.error('Error fetching listings:', error);

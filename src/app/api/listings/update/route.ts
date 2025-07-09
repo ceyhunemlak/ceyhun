@@ -133,6 +133,7 @@ export async function PUT(request: NextRequest) {
         price,
         property_type,
         listing_status: handleEnumField(listing_status) || 'satilik', // Ensure listing_status is never empty
+        // is_active değerini koruyoruz - durumunu değiştirmiyoruz
       })
       .eq('id', id);
 

@@ -248,22 +248,21 @@ export default function Home() {
             <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-headings font-bold text-white mb-4 sm:mb-6">
               Gayrimenkul Yolculuğunuza <span className="text-primary text-2xl sm:text-3xl md:text-4xl lg:text-5xl">Bugün</span> Başlayın
             </h2>
-            <p className="text-gray-300 text-base sm:text-lg md:text-xl max-w-3xl mx-auto mb-6 sm:mb-10">
-              Size özel gayrimenkul ve vasıta çözümleri için hemen bizimle iletişime geçin.
+            <p className="text-white/80 text-base sm:text-lg max-w-2xl mx-auto mb-8 sm:mb-10">
+              Hayalinizdeki evi veya aracı bulmak için bizimle iletişime geçin. Size özel çözümler sunalım.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="bg-primary hover:bg-primary/90 text-white font-medium px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg transition-all duration-300 shadow-lg hover:shadow-xl">
-                Bize Ulaşın
-              </button>
-              <Link href="/ilanlar/konut" className="bg-transparent border-2 border-white/30 hover:border-white text-white font-medium px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg transition-all duration-300">
-                İlanları Keşfedin
-              </Link>
-            </div>
+            <Link 
+              href="/ilanlar" 
+              className="inline-block bg-primary hover:bg-primary/90 text-white font-medium py-3 px-8 rounded-full transition-all duration-300 transform hover:scale-105 hover:shadow-lg"
+            >
+              Tüm İlanları Görüntüle
+            </Link>
           </div>
         </div>
+        
+        {/* Footer */}
+        <Footer />
       </main>
-      
-      <Footer />
     </div>
   );
 }

@@ -489,14 +489,23 @@ export async function GET(request: NextRequest) {
     } else {
       // Get all listings with their cover images
       console.log('Fetching all listings');
-      const { data, error } = await supabase
+      
+      // URL parametrelerini kontrol et, admin panelden geliyorsa tüm ilanları göster
+      const isAdminRequest = request.headers.get('referer')?.includes('/admin');
+      let query = supabase
         .from('listings')
         .select(`
           *,
           images(url, is_cover)
-        `)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
+        `);
+        
+      // Admin panelinden yapılan isteklerde tüm ilanları göster
+      // Diğer sayfalarda (client) sadece aktif ilanları göster
+      if (!isAdminRequest) {
+        query = query.eq('is_active', true);
+      }
+      
+      const { data, error } = await query.order('created_at', { ascending: false });
         
       if (error) {
         console.error('Supabase error when fetching all listings:', error);

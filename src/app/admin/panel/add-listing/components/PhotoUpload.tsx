@@ -119,6 +119,7 @@ interface Photo {
   isExisting?: boolean;
   status?: 'uploading' | 'uploaded' | 'error';
   progress?: number;
+  error?: string; // Add error property to Photo interface
 }
 
 // Sürüklenebilir fotoğraf kartı bileşeni
@@ -377,11 +378,18 @@ export default function PhotoUpload({
     // Call updateFormData outside of a setState callback
     updateFormData({ photos: updatedPhotos, photosToDelete });
     
-    // If we have a temporary listing ID, upload photos immediately
-    if (tempListingId && selectedCategory) {
+    // Check if we have a listing ID to work with (either temp or existing)
+    // Use formData.id for edit mode (this is the existing listing ID)
+    const isEditMode = !!formData.id;
+    const currentListingId = isEditMode ? formData.id as string : tempListingId;
+    
+    // If we have a listing ID (temp or real), upload photos immediately
+    // Düzenleme modunda tempListingId null olabilir ancak yine de uploadPhotosToCloudinary çağrılmalı
+    // Bu durumu kontrol edip, ya tempListingId (yeni ilan) ya da formData.id (düzenleme modu) kullanacağız
+    if (currentListingId && selectedCategory) {
+      console.log(`Fotoğraflar yüklenecek - listing ID: ${currentListingId}, düzenleme modu: ${isEditMode}, formData.id: ${formData.id}`);
       setIsUploading(true);
       
-      // Upload each photo individually with progress tracking
       const uploadPromises = newPhotos.map(async (photo, i) => {
         const photoIndex = photos.length + i;
         
@@ -391,108 +399,67 @@ export default function PhotoUpload({
           const photoFormData = new FormData();
           photoFormData.append('file', photo.file);
           photoFormData.append('propertyType', selectedCategory);
-          photoFormData.append('listingId', tempListingId);
+          photoFormData.append('listingId', currentListingId);
           photoFormData.append('index', photoIndex.toString());
           
-          // Use XMLHttpRequest for progress tracking
-          const uploadWithProgress = () => {
-            return new Promise<{id: string, url: string}>((resolve, reject) => {
-              const xhr = new XMLHttpRequest();
-              
-              // Track upload progress
-              xhr.upload.addEventListener('progress', (event) => {
-                if (event.lengthComputable) {
-                  const progressPercent = Math.round((event.loaded / event.total) * 100);
-                  
-                  // Update the progress in the photos array
-                  setPhotos(currentPhotos => {
-                    const updatedPhotos = [...currentPhotos];
-                    // Find the correct photo in case order has changed
-                    const targetIndex = updatedPhotos.findIndex(p => 
-                      !p.isExisting && p.file && p.file.name === photo.file?.name && p.file.size === photo.file?.size
-                    );
-                    
-                    if (targetIndex !== -1) {
-                      updatedPhotos[targetIndex] = {
-                        ...updatedPhotos[targetIndex],
-                        progress: progressPercent
-                      };
-                    }
-                    return updatedPhotos;
-                  });
-                }
-              });
-              
-              // Handle completion
-              xhr.addEventListener('load', () => {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                  try {
-                    const response = JSON.parse(xhr.responseText);
-                    resolve(response);
-                  } catch (error) {
-                    reject(new Error('Invalid response from server'));
-                  }
-                } else {
-                  reject(new Error(`Upload failed with status ${xhr.status}`));
-                }
-              });
-              
-              // Handle errors
-              xhr.addEventListener('error', () => {
-                console.error('XHR upload error');
-                
-                // Create a more detailed error message for the user
-                let errorMessage = 'Fotoğraf yükleme hatası';
-                
-                if (xhr.status === 413) {
-                  errorMessage = 'Fotoğraf boyutu çok büyük. Lütfen daha küçük bir fotoğraf yükleyin veya sıkıştırılmış bir dosya kullanın.';
-                } else if (xhr.status === 408 || xhr.status === 504) {
-                  errorMessage = 'Yükleme zaman aşımına uğradı. Lütfen daha küçük bir fotoğraf yükleyin veya internet bağlantınızı kontrol edin.';
-                } else if (xhr.status >= 500) {
-                  errorMessage = 'Sunucu hatası. Lütfen daha sonra tekrar deneyin.';
-                }
-                
-                reject(new Error(errorMessage));
-              });
-              
-              // Handle timeouts
-              xhr.addEventListener('timeout', () => {
-                reject(new Error('Yükleme zaman aşımına uğradı. Lütfen daha küçük bir fotoğraf yükleyin veya internet bağlantınızı kontrol edin.'));
-              });
-              
-              xhr.addEventListener('abort', () => {
-                reject(new Error('Upload was aborted'));
-              });
-              
-              // Open and send the request
-              xhr.open('POST', '/api/upload');
-              xhr.send(photoFormData);
-            });
-          };
+          // Düzenleme modu için formData.id ekleyelim
+          if (formData.id) {
+            photoFormData.append('currentListingId', formData.id as string);
+          }
           
-          // Start the upload
-          const result = await uploadWithProgress();
+          // İlan başlığı varsa, klasör adı oluşturmak için ekleyelim
+          if (formData.title) {
+            photoFormData.append('title', formData.title as string);
+            console.log(`İlan başlığı ile yükleme: ${formData.title}`);
+          } else {
+            console.log('İlan başlığı bulunamadı, klasör ID üzerinden oluşturulacak');
+          }
           
-          // Update the photo with the uploaded info
-          setPhotos(currentPhotos => {
-            const updatedPhotos = [...currentPhotos];
-            // Find the correct photo in case order has changed
-            const targetIndex = updatedPhotos.findIndex(p => 
-              !p.isExisting && p.file && p.file.name === photo.file?.name && p.file.size === photo.file?.size
-            );
-            
-            if (targetIndex !== -1) {
-              updatedPhotos[targetIndex] = {
-                ...updatedPhotos[targetIndex],
-                id: result.id,
-                url: result.url,
-                isExisting: true,
-                status: 'uploaded',
-                progress: 100
+          // Update photo status to uploading
+          setPhotos(prev => {
+            const updated = [...prev];
+            if (updated[i]) {
+              updated[i] = {
+                ...updated[i],
+                status: 'uploading',
+                progress: 0
               };
             }
-            return updatedPhotos;
+            return updated;
           });
+          
+          // Upload to server
+          const uploadResponse = await fetch('/api/upload', {
+            method: 'POST',
+            body: photoFormData,
+          });
+          
+          if (!uploadResponse.ok) {
+            const errorData = await uploadResponse.json();
+            console.error('Upload failed:', errorData);
+            
+            // Update photo with error status
+            setPhotos(prev => {
+              const updated = [...prev];
+              if (updated[i]) {
+                updated[i] = {
+                  ...updated[i],
+                  status: 'error',
+                  error: errorData.details || errorData.error || 'Yükleme başarısız oldu'
+                };
+              }
+              return updated;
+            });
+            
+            // Set error state with detailed message
+            const errorMessage = errorData.details || errorData.error || 'Fotoğraf yükleme hatası';
+            setError(`Fotoğraf yükleme hatası: ${errorMessage}`);
+            
+            return; // Skip further processing for this photo
+          }
+          
+          // Process successful upload
+          const result = await uploadResponse.json();
           
           // Extract folder path from the first uploaded image
           if (i === 0 && result.id) {
@@ -502,14 +469,10 @@ export default function PhotoUpload({
             setCloudinaryFolder(folderPath);
           }
           
-          return result;
-        } catch (error) {
-          console.error(`Error uploading photo ${i + 1}:`, error);
-          
-          // Mark the photo as failed
+          // Update photo state with URL
           setPhotos(currentPhotos => {
             const updatedPhotos = [...currentPhotos];
-            // Find the correct photo in case order has changed
+            // Find the photo we just uploaded
             const targetIndex = updatedPhotos.findIndex(p => 
               !p.isExisting && p.file && p.file.name === photo.file?.name && p.file.size === photo.file?.size
             );
@@ -517,11 +480,32 @@ export default function PhotoUpload({
             if (targetIndex !== -1) {
               updatedPhotos[targetIndex] = {
                 ...updatedPhotos[targetIndex],
-                status: 'error'
+                id: result.id,
+                url: result.url,
+                status: 'uploaded',
+                progress: 100
               };
             }
             return updatedPhotos;
           });
+        } catch (error) {
+          console.error(`Error uploading photo ${i + 1}:`, error);
+          
+          // Update photo with error status
+          setPhotos(prev => {
+            const updated = [...prev];
+            if (updated[i]) {
+              updated[i] = {
+                ...updated[i],
+                status: 'error',
+                error: error instanceof Error ? error.message : 'Bilinmeyen hata'
+              };
+            }
+            return updated;
+          });
+          
+          // Set error state
+          setError(`Fotoğraf yükleme hatası: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`);
         }
       });
       
@@ -529,9 +513,15 @@ export default function PhotoUpload({
         // Wait for all uploads to complete
         await Promise.allSettled(uploadPromises);
         
-        // Update form data with the current photos after all uploads are complete
-        // Don't call setState inside another setState function
+        // Check if any uploads failed
         setPhotos(currentPhotos => {
+          const failedUploads = currentPhotos.filter(photo => photo.status === 'error');
+          if (failedUploads.length > 0) {
+            setError(`${failedUploads.length} fotoğraf yüklenemedi. Lütfen tekrar deneyiniz.`);
+          } else {
+            setError(null); // Clear error if all uploads successful
+          }
+          
           // Important: Need to return the same array to avoid triggering re-render
           const finalPhotos = [...currentPhotos];
           updateFormData({ photos: finalPhotos, photosToDelete });
@@ -539,11 +529,12 @@ export default function PhotoUpload({
         });
       } catch (error) {
         console.error('Error in batch upload:', error);
+        setError(`Toplu yükleme hatası: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`);
       } finally {
         setIsUploading(false);
       }
     }
-  }, [photos, updateFormData, photosToDelete, tempListingId, selectedCategory, setCloudinaryFolder]);
+  }, [photos, updateFormData, photosToDelete, tempListingId, selectedCategory, setCloudinaryFolder, formData.id, formData.title]);
   
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -831,6 +822,7 @@ export default function PhotoUpload({
 
   // Function to upload all photos to Cloudinary when the form is submitted
   const uploadPhotosToCloudinary = async (propertyType: string, listingId: string): Promise<Photo[]> => {
+    console.log(`uploadPhotosToCloudinary çağrıldı - propertyType: ${propertyType}, listingId: ${listingId}`);
     setIsUploading(true);
     const uploadedPhotos: Photo[] = [];
     
@@ -846,6 +838,9 @@ export default function PhotoUpload({
       const existingPhotos = photos.filter(p => p.isExisting);
       if (existingPhotos.length > 0 && existingPhotos[0].id) {
         existingFolderPath = extractFolderPath(existingPhotos[0].id);
+        console.log(`Mevcut klasör yolu bulundu: ${existingFolderPath}`);
+      } else {
+        console.log('Mevcut klasör yolu bulunamadı, yeni fotoğraflar için yeni klasör oluşturulacak');
       }
       
       // Track uploaded photos to avoid duplicates
@@ -883,6 +878,12 @@ export default function PhotoUpload({
         photoFormData.append('listingId', listingId);
         photoFormData.append('index', i.toString());
         
+        // Düzenleme modu için formData.id ekleyelim
+        if (formData.id) {
+          photoFormData.append('currentListingId', formData.id as string);
+          console.log(`Düzenleme modu - currentListingId: ${formData.id}`);
+        }
+        
         // Add title if available for folder naming
         if (folderTitle) {
           photoFormData.append('title', folderTitle);
@@ -893,22 +894,34 @@ export default function PhotoUpload({
           photoFormData.append('existingFolder', existingFolderPath);
         }
         
-        const response = await fetch('/api/upload', {
-          method: 'POST',
-          body: photoFormData
-        });
+        console.log(`Fotoğraf ${i+1} yükleniyor, existingFolder: ${existingFolderPath || 'yok'}`);
         
-        if (!response.ok) {
-          throw new Error(`Failed to upload image ${i + 1}`);
-        }
-        
-        const result = await response.json();
-        uploadedPhotos.push({
-          id: result.id,
-          url: result.url,
-          preview: photo.preview, // Add the preview from the original photo
-          isExisting: false
-        });
+        try {
+          const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: photoFormData
+          });
+          
+          // Hata durumunda daha detaylı hata mesajı almak için
+          if (!response.ok) {
+            const errorResponse = await response.json();
+            console.error(`Yükleme hatası (${response.status}):`, errorResponse);
+            throw new Error(`Fotoğraf ${i+1} yüklenirken hata: ${errorResponse.error || response.statusText}`);
+          }
+          
+          const result = await response.json();
+          console.log(`Fotoğraf ${i+1} başarıyla yüklendi: ${result.id}`);
+          
+          uploadedPhotos.push({
+            id: result.id,
+            url: result.url,
+            preview: photo.preview, // Add the preview from the original photo
+            isExisting: false
+          });
+        } catch (uploadError) {
+          console.error(`Fotoğraf ${i+1} yükleme hatası:`, uploadError);
+          throw new Error(`Fotoğraf ${i+1} yüklenirken hata oluştu: ${uploadError instanceof Error ? uploadError.message : String(uploadError)}`);
+                  }
       }
       
       setIsUploading(false);
@@ -1015,6 +1028,7 @@ export default function PhotoUpload({
       )}
 
       {/* Only show the full-screen loader for bulk operations, not for individual uploads */}
+      {/* Popup'ı kaldırıyoruz
       {isUploading && photos.filter(p => !p.status).length > 0 && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-xl flex flex-col items-center">
@@ -1024,6 +1038,7 @@ export default function PhotoUpload({
           </div>
         </div>
       )}
+      */}
     </motion.div>
   );
 } 

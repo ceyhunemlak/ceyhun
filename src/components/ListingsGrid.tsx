@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { MapPin, Bed, Expand, Car, ArrowRight, Calendar } from "lucide-react";
 import { Swiper, SwiperSlide } from "swiper/react";
-import { Autoplay, Navigation, Pagination } from "swiper/modules";
+import { Autoplay, Pagination } from "swiper/modules";
 import 'swiper/css';
 import 'swiper/css/pagination';
 import { Loading } from "@/components/ui/loading";
@@ -240,7 +240,7 @@ const ListingsGrid = () => {
               }}
               speed={800}
               loop={true}
-              modules={[Autoplay, Pagination, Navigation]}
+              modules={[Autoplay, Pagination]}
               breakpoints={{
                 640: {
                   slidesPerView: 2,
