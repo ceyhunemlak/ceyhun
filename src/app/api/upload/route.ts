@@ -56,38 +56,53 @@ export async function POST(request: NextRequest) {
     if (currentListingId && !existingFolder) {
       try {
         console.log(`Düzenleme modu, id: ${currentListingId} için klasör aranıyor...`);
-        // Klasörü bulmak için Cloudinary'de bu ID'ye ait önceki yüklemeleri kontrol edelim
-        const result = await cloudinary.api.resources({
-          type: 'upload',
-          prefix: `ceyhun-emlak/${propertyType}`,
-          max_results: 500,
-          tags: true
-        });
         
-        // İlanın ID'sini içeren klasörleri arayalım
-        for (const resource of result.resources) {
-          if (resource.public_id.includes(`ceyhun-emlak/${propertyType}/`)) {
-            const pathParts = resource.public_id.split('/');
-            // Klasör yolu olacak şekilde son kısmı (dosya adı) çıkaralım
-            pathParts.pop();
-            const possibleFolder = pathParts.join('/');
+        // Başlık varsa, başlığa göre klasör oluşturma/arama mantığını uygula
+        if (title) {
+          // Başlığı temizle ve klasör adı formatına dönüştür
+          const sanitizedTitle = title
+            .toLowerCase()
+            .replace(/[çğıöşü]/g, (c: string) => ({ 'ç': 'c', 'ğ': 'g', 'ı': 'i', 'ö': 'o', 'ş': 's', 'ü': 'u' })[c as keyof { 'ç': string; 'ğ': string; 'ı': string; 'ö': string; 'ş': string; 'ü': string; }] || c)
+            .replace(/\s+/g, '-')
+            .replace(/[^a-z0-9-]/g, '')
+            .substring(0, 50);
+          
+          console.log(`Düzenleme modunda başlık kullanılıyor: "${title}", sanitized: "${sanitizedTitle}"`);
+          
+          // Başlığa göre klasör var mı kontrol et
+          const baseFolder = `ceyhun-emlak/${propertyType}`;
+          const possibleFolder = `${baseFolder}/${sanitizedTitle}`;
+          
+          try {
+            // Başlığa göre klasör var mı kontrol et
+            const result = await cloudinary.api.resources({
+              type: 'upload',
+              prefix: possibleFolder,
+              max_results: 1
+            });
             
-            console.log(`Düzenleme modunda olası klasör bulundu: ${possibleFolder}`);
-            existingFolder = possibleFolder;
-            break;
+            if (result.resources.length > 0) {
+              // Başlığa göre klasör bulundu, bunu kullan
+              existingFolder = possibleFolder;
+              console.log(`Başlık ile eşleşen klasör bulundu: ${existingFolder}`);
+            } else {
+              // Başlığa göre klasör yok, yeni oluşturulacak
+              console.log(`Başlık ile eşleşen klasör bulunamadı, yeni klasör oluşturulacak: ${possibleFolder}`);
+              // existingFolder null kalacak ve yeni klasör oluşturulacak
+            }
+          } catch (error) {
+            console.log(`Başlık klasörü kontrol hatası (yeni klasör oluşturulacak): ${error instanceof Error ? error.message : String(error)}`);
+            // Hata durumunda yeni klasör oluşturulacak
           }
+        } else {
+          // Başlık yoksa, uyarı ver
+          console.log(`Başlık bulunamadı, klasör oluşturulamayacak`);
         }
         
         if (existingFolder) {
           console.log(`Düzenleme modu için klasör bulundu: ${existingFolder}`);
         } else {
           console.log(`Düzenleme modu için klasör bulunamadı, başlıktan yeni klasör oluşturulacak`);
-          // Klasör bulunamadıysa ve title varsa, başlıktan yeni bir klasör oluşturalım
-          if (title) {
-            console.log(`İlan başlığından yeni klasör oluşturuluyor: ${title}`);
-            // Klasör oluşturma işlemi aşağıdaki else bloğunda yapılacak
-            // burada sadece existingFolder'ı null bırakıyoruz
-          }
         }
       } catch (error) {
         console.error(`Düzenleme modu klasör arama hatası: ${error instanceof Error ? error.message : String(error)}`);
@@ -158,8 +173,9 @@ export async function POST(request: NextRequest) {
           // Başlığı temizle ve klasör adı formatına dönüştür
           sanitizedTitle = title
             .toLowerCase()
-            .replace(/[^\p{L}\p{N}\s-]/gu, '') // Remove special characters but keep Turkish letters
+            .replace(/[çğıöşü]/g, (c: string) => ({ 'ç': 'c', 'ğ': 'g', 'ı': 'i', 'ö': 'o', 'ş': 's', 'ü': 'u' })[c as keyof { 'ç': string; 'ğ': string; 'ı': string; 'ö': string; 'ş': string; 'ü': string; }] || c)
             .replace(/\s+/g, '-')              // Replace spaces with hyphens
+            .replace(/[^a-z0-9-]/g, '')        // Remove special characters
             .replace(/-+/g, '-')               // Replace multiple hyphens with single hyphen
             .substring(0, 50);                 // Limit length to 50 characters
             

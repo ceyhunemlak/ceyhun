@@ -27,13 +27,12 @@ export async function DELETE(request: NextRequest) {
       
     if (dbError) {
       console.error(`Error deleting image ${imageId} from database:`, dbError);
-      return NextResponse.json(
-        { error: 'Failed to delete image from database', details: dbError },
-        { status: 500 }
-      );
+      // Don't return error here, continue to delete from Cloudinary even if not in database
+      // This handles the case of newly uploaded photos that aren't in the database yet
+      console.log(`Continuing to delete from Cloudinary even though database delete failed`);
+    } else {
+      console.log(`Successfully deleted image ${imageId} from database`);
     }
-    
-    console.log(`Successfully deleted image ${imageId} from database`);
     
     // Then delete from Cloudinary using direct API call
     try {

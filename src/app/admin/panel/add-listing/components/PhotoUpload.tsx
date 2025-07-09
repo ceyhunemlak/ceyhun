@@ -407,12 +407,22 @@ export default function PhotoUpload({
             photoFormData.append('currentListingId', formData.id as string);
           }
           
-          // İlan başlığı varsa, klasör adı oluşturmak için ekleyelim
+          // Her zaman başlık bilgisini gönder, API başlığa göre klasör oluşturacak
           if (formData.title) {
             photoFormData.append('title', formData.title as string);
             console.log(`İlan başlığı ile yükleme: ${formData.title}`);
           } else {
-            console.log('İlan başlığı bulunamadı, klasör ID üzerinden oluşturulacak');
+            console.log('İlan başlığı bulunamadı');
+          }
+          
+          // Eğer mevcut klasör varsa, onu da gönder (API öncelik verecek)
+          const existingPhoto = formData.photos?.find((p: any) => p.isExisting && p.id);
+          if (existingPhoto && existingPhoto.id) {
+            const existingFolder = extractFolderPath(existingPhoto.id);
+            if (existingFolder) {
+              photoFormData.append('existingFolder', existingFolder);
+              console.log(`Mevcut klasör bilgisi de gönderiliyor: ${existingFolder}`);
+            }
           }
           
           // Update photo status to uploading
@@ -570,9 +580,9 @@ export default function PhotoUpload({
     // Add debug log to track photo removal
     console.log(`Removing photo at index ${index}:`, photo);
     
-    // If it's an existing photo, delete it immediately from Cloudinary and database
-    if (photo.isExisting && photo.id) {
-      console.log(`Deleting existing photo: ${photo.id}`);
+    // Eğer fotoğraf ID'si varsa (mevcut veya yeni yüklenmiş), Cloudinary'den sil
+    if (photo.id) {
+      console.log(`Deleting photo: ${photo.id}`);
       
       try {
         // Call the direct delete API to remove from database and Cloudinary
@@ -642,6 +652,12 @@ export default function PhotoUpload({
       const updatedPhotosToDelete = [...photosToDelete, photo.id];
       setPhotosToDelete(updatedPhotosToDelete);
       console.log('Updated photosToDelete list:', updatedPhotosToDelete);
+    } else if (photo.status === 'uploading') {
+      // Eğer fotoğraf hala yükleniyorsa, yüklemeyi iptal etmeye çalış
+      console.log('Cancelling upload for photo in progress');
+      // Burada yükleme iptal işlemi yapılabilir, ancak genellikle fetch API'de iptal işlemi kolay değildir
+      // En azından kullanıcıya bilgi verelim
+      alert('Yüklenmekte olan fotoğraf kaldırıldı.');
     }
     
     // Release object URL to avoid memory leaks if it's a newly added photo
@@ -654,7 +670,7 @@ export default function PhotoUpload({
     setPhotos(updatedPhotos);
     
     // Make sure we update formData with both the updated photos and the updated photosToDelete list
-    const newPhotosToDelete = photo.isExisting && photo.id 
+    const newPhotosToDelete = photo.id 
       ? [...photosToDelete, photo.id]
       : photosToDelete;
     
@@ -888,14 +904,16 @@ export default function PhotoUpload({
           console.log(`Düzenleme modu - currentListingId: ${formData.id}`);
         }
         
-        // Add title if available for folder naming
-        if (folderTitle) {
-          photoFormData.append('title', folderTitle);
-        }
+                  // Her zaman başlık bilgisini gönder, API başlığa göre klasör oluşturacak
+          if (folderTitle) {
+            photoFormData.append('title', folderTitle);
+            console.log(`Klasör adı için başlık kullanılıyor: ${folderTitle}`);
+          }
         
-        // If we have an existing folder path, use it
+        // If we have an existing folder path, also send it (API will decide priority)
         if (existingFolderPath) {
           photoFormData.append('existingFolder', existingFolderPath);
+          console.log(`Mevcut klasör bilgisi de gönderiliyor: ${existingFolderPath}`);
         }
         
         console.log(`Fotoğraf ${i+1} yükleniyor, existingFolder: ${existingFolderPath || 'yok'}`);
