@@ -14,6 +14,8 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: '20mb', // Fotoğraf yükleme limiti 10MB için 20MB'lık buffer
     },
+    inlineCss: true, // CSS'i HTML içine yerleştir
+    optimizeCss: true, // Kritik CSS'i otomatik olarak ayırır
   },
 };
 

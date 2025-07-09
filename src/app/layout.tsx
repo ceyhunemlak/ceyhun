@@ -9,6 +9,7 @@ const inter = Inter({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-inter",
+  preload: true,
 });
 
 const poppins = Poppins({
@@ -16,6 +17,7 @@ const poppins = Poppins({
   weight: ["300", "400", "500", "600", "700"],
   display: "swap",
   variable: "--font-poppins",
+  preload: true,
 });
 
 export const viewport: Viewport = {
@@ -38,8 +40,24 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="tr" className={`${poppins.variable} ${inter.variable} no-scrollbar`}>
+      <head>
+        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      </head>
       <body className="antialiased no-scrollbar mobile-scroll-fix">
         {children}
+        
+        {/* Script to load stylesheets asynchronously */}
+        <Script id="load-stylesheets" strategy="afterInteractive">
+          {`
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = 'https://cdn.jsdelivr.net/npm/swiper/swiper.min.css';
+            link.media = 'print';
+            link.onload = function() { this.media = 'all'; };
+            document.head.appendChild(link);
+          `}
+        </Script>
         
         {/* Script to prevent text selection */}
         <Script id="prevent-text-selection" strategy="afterInteractive">
