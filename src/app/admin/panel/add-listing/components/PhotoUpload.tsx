@@ -192,25 +192,30 @@ export default function PhotoUpload({
   // When formData.photos changes (e.g., from parent component), update our local state
   useEffect(() => {
     if (formData.photos) {
-      // Ensure we don't have duplicates by checking IDs
-      const uniquePhotos: Photo[] = [];
-      const seenIds = new Set<string>();
-      
-      formData.photos.forEach((photo: Photo) => {
-        if (photo.isExisting && photo.id) {
-          if (!seenIds.has(photo.id)) {
-            seenIds.add(photo.id);
-            uniquePhotos.push(photo);
+      // Only update if we don't already have photos or if the photos have changed
+      if (photos.length === 0 || JSON.stringify(formData.photos) !== JSON.stringify(photos)) {
+        console.log('Updating photos from formData', formData.photos);
+        
+        // Ensure we don't have duplicates by checking IDs
+        const uniquePhotos: Photo[] = [];
+        const seenIds = new Set<string>();
+        
+        formData.photos.forEach((photo: Photo) => {
+          if (photo.isExisting && photo.id) {
+            if (!seenIds.has(photo.id)) {
+              seenIds.add(photo.id);
+              uniquePhotos.push(photo);
+            } else {
+              console.log(`Skipping duplicate photo with ID: ${photo.id}`);
+            }
           } else {
-            console.log(`Skipping duplicate photo with ID: ${photo.id}`);
+            // For new photos, we can't easily detect duplicates, so add them all
+            uniquePhotos.push(photo);
           }
-        } else {
-          // For new photos, we can't easily detect duplicates, so add them all
-          uniquePhotos.push(photo);
-        }
-      });
-      
-      setPhotos(uniquePhotos);
+        });
+        
+        setPhotos(uniquePhotos);
+      }
     }
   }, [formData.photos]);
 
@@ -272,8 +277,12 @@ export default function PhotoUpload({
       progress: 0
     }));
     
+    // Create a copy of photos to avoid reference issues
     const updatedPhotos = [...photos, ...newPhotos];
+    console.log('Setting photos after drop', updatedPhotos.length);
     setPhotos(updatedPhotos);
+    
+    // Call updateFormData outside of a setState callback
     updateFormData({ photos: updatedPhotos, photosToDelete });
     
     // If we have a temporary listing ID, upload photos immediately
@@ -306,9 +315,14 @@ export default function PhotoUpload({
                   // Update the progress in the photos array
                   setPhotos(currentPhotos => {
                     const updatedPhotos = [...currentPhotos];
-                    if (updatedPhotos[photoIndex]) {
-                      updatedPhotos[photoIndex] = {
-                        ...updatedPhotos[photoIndex],
+                    // Find the correct photo in case order has changed
+                    const targetIndex = updatedPhotos.findIndex(p => 
+                      !p.isExisting && p.file && p.file.name === photo.file?.name && p.file.size === photo.file?.size
+                    );
+                    
+                    if (targetIndex !== -1) {
+                      updatedPhotos[targetIndex] = {
+                        ...updatedPhotos[targetIndex],
                         progress: progressPercent
                       };
                     }
@@ -352,9 +366,14 @@ export default function PhotoUpload({
           // Update the photo with the uploaded info
           setPhotos(currentPhotos => {
             const updatedPhotos = [...currentPhotos];
-            if (updatedPhotos[photoIndex]) {
-              updatedPhotos[photoIndex] = {
-                ...updatedPhotos[photoIndex],
+            // Find the correct photo in case order has changed
+            const targetIndex = updatedPhotos.findIndex(p => 
+              !p.isExisting && p.file && p.file.name === photo.file?.name && p.file.size === photo.file?.size
+            );
+            
+            if (targetIndex !== -1) {
+              updatedPhotos[targetIndex] = {
+                ...updatedPhotos[targetIndex],
                 id: result.id,
                 url: result.url,
                 isExisting: true,
@@ -380,9 +399,14 @@ export default function PhotoUpload({
           // Mark the photo as failed
           setPhotos(currentPhotos => {
             const updatedPhotos = [...currentPhotos];
-            if (updatedPhotos[photoIndex]) {
-              updatedPhotos[photoIndex] = {
-                ...updatedPhotos[photoIndex],
+            // Find the correct photo in case order has changed
+            const targetIndex = updatedPhotos.findIndex(p => 
+              !p.isExisting && p.file && p.file.name === photo.file?.name && p.file.size === photo.file?.size
+            );
+            
+            if (targetIndex !== -1) {
+              updatedPhotos[targetIndex] = {
+                ...updatedPhotos[targetIndex],
                 status: 'error'
               };
             }
@@ -395,10 +419,13 @@ export default function PhotoUpload({
         // Wait for all uploads to complete
         await Promise.allSettled(uploadPromises);
         
-        // Get the final state of photos and update form data
+        // Update form data with the current photos after all uploads are complete
+        // Don't call setState inside another setState function
         setPhotos(currentPhotos => {
-          updateFormData({ photos: currentPhotos, photosToDelete });
-          return currentPhotos;
+          // Important: Need to return the same array to avoid triggering re-render
+          const finalPhotos = [...currentPhotos];
+          updateFormData({ photos: finalPhotos, photosToDelete });
+          return finalPhotos;
         });
       } catch (error) {
         console.error('Error in batch upload:', error);
@@ -434,6 +461,9 @@ export default function PhotoUpload({
   const removePhoto = async (index: number) => {
     const updatedPhotos = [...photos];
     const photo = updatedPhotos[index];
+    
+    // Add debug log to track photo removal
+    console.log(`Removing photo at index ${index}:`, photo);
     
     // If it's an existing photo, delete it immediately from Cloudinary and database
     if (photo.isExisting && photo.id) {
@@ -515,6 +545,7 @@ export default function PhotoUpload({
     }
     
     updatedPhotos.splice(index, 1);
+    console.log(`Photo removed. Remaining photos: ${updatedPhotos.length}`);
     setPhotos(updatedPhotos);
     
     // Make sure we update formData with both the updated photos and the updated photosToDelete list
@@ -522,6 +553,7 @@ export default function PhotoUpload({
       ? [...photosToDelete, photo.id]
       : photosToDelete;
     
+    // Call updateFormData with the updated photos
     updateFormData({ 
       photos: updatedPhotos, 
       photosToDelete: newPhotosToDelete 

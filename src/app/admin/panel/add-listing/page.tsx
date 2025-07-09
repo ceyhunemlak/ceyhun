@@ -497,7 +497,18 @@ export default function AddListing() {
   // Generate a temporary listing ID on component mount
   useEffect(() => {
     if (!isEditMode) {
-      const newListingId = crypto.randomUUID();
+      let newListingId;
+      try {
+        // Try to use the standard crypto.randomUUID method
+        newListingId = crypto.randomUUID();
+      } catch (error) {
+        // Fallback method to generate a UUID if randomUUID is not available
+        newListingId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = Math.random() * 16 | 0;
+          const v = c === 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+      }
       setTempListingId(newListingId);
       console.log(`Generated temporary listing ID: ${newListingId}`);
     }
