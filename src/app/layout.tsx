@@ -83,6 +83,34 @@ export default function RootLayout({
           `}
         </Script>
         
+        {/* Schema.org structured data for Real Estate Agent */}
+        <Script id="schema-real-estate-agent" type="application/ld+json">
+          {`
+{
+  "@context": "https://schema.org",
+  "@type": "RealEstateAgent",
+  "name": "Ceyhun Gayrimenkul",
+  "url": "https://www.ceyhundan.com",
+  "logo": "https://www.ceyhundan.com/images/logo_black.png",
+  "image": "https://www.ceyhundan.com/images/ce.png",
+  "description": "Tokat'ın güvenilir emlak ofisi. Satılık-kiralık ev, daire, arsa ve iş yeri ilanları.",
+  "telephone": "+9005323850420",
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Tokat",
+    "addressRegion": "Tokat",
+    "addressCountry": "TR"
+  },
+  "openingHours": "Mo,Tu,We,Th,Fr 09:00-18:00",
+  "priceRange": "$$",
+  "sameAs": [
+    "https://www.facebook.com/CeyhunGayrimenkulEmlak",
+    "https://www.instagram.com/ceyhungayrimenkul"
+  ]
+}
+          `}
+        </Script>
+        
         {/* Script to fix mobile viewport height and scrolling issues */}
         <Script id="fix-viewport-height" strategy="afterInteractive">
           {`
