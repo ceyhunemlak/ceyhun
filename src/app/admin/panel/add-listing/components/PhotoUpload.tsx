@@ -45,7 +45,7 @@ const compressImage = async (file: File, maxSizeMB: number = 1): Promise<File> =
       canvas.height = height;
       ctx.drawImage(img, 0, 0, width, height);
       
-      // Convert to Blob with reduced quality
+      // Convert to Blob with optimized quality
       canvas.toBlob(
         (blob) => {
           if (!blob) {
@@ -70,7 +70,7 @@ const compressImage = async (file: File, maxSizeMB: number = 1): Promise<File> =
                 resolve(compressedFile);
               },
               'image/jpeg',
-              0.7 // Lower quality for second attempt
+              0.6 // Lower quality for second attempt (changed from 0.7 to 0.6)
             );
           } else {
             // Create a new file from the blob
@@ -82,7 +82,7 @@ const compressImage = async (file: File, maxSizeMB: number = 1): Promise<File> =
           }
         },
         'image/jpeg',
-        0.85 // Initial quality
+        0.8 // Initial quality (changed from 0.85 to 0.8)
       );
     };
     
@@ -846,25 +846,26 @@ export default function PhotoUpload({
       // Track uploaded photos to avoid duplicates
       const uploadedPhotoIds = new Set<string>();
       
-      for (let i = 0; i < photos.length; i++) {
-        const photo = photos[i];
-        
-        // Skip if already uploaded (existing photos)
-        if (photo.isExisting && photo.id) {
-          // Only add if not already in the uploadedPhotos array
-          if (!uploadedPhotoIds.has(photo.id)) {
-            uploadedPhotoIds.add(photo.id);
-            uploadedPhotos.push({
-              id: photo.id,
-              url: photo.url || '',
-              preview: photo.preview,
-              isExisting: true
-            });
-          } else {
-            console.log(`Skipping duplicate existing photo: ${photo.id}`);
-          }
-          continue;
+      // Filter out photos that are already uploaded or have errors
+      const photosToUpload = photos.filter(photo => !photo.isExisting && !photo.id && photo.file);
+      console.log(`${photosToUpload.length} fotoğraf yüklenecek`);
+      
+      // Add existing photos to the result directly (optimization - don't reupload)
+      for (const photo of existingPhotos) {
+        if (photo.id && !uploadedPhotoIds.has(photo.id)) {
+          uploadedPhotoIds.add(photo.id);
+          uploadedPhotos.push({
+            id: photo.id,
+            url: photo.url || '',
+            preview: photo.preview,
+            isExisting: true
+          });
         }
+      }
+      
+      // Only upload photos that need uploading
+      for (let i = 0; i < photosToUpload.length; i++) {
+        const photo = photosToUpload[i];
         
         // Skip if file is missing
         if (!photo.file) {
@@ -894,9 +895,21 @@ export default function PhotoUpload({
           photoFormData.append('existingFolder', existingFolderPath);
         }
         
-        console.log(`Fotoğraf ${i+1} yükleniyor, existingFolder: ${existingFolderPath || 'yok'}`);
+        console.log(`Fotoğraf ${i+1}/${photosToUpload.length} yükleniyor, existingFolder: ${existingFolderPath || 'yok'}`);
         
         try {
+          // Update UI to show upload is in progress
+          const updatedPhotos = [...photos];
+          const originalIndex = photos.findIndex(p => p === photo);
+          if (originalIndex !== -1) {
+            updatedPhotos[originalIndex] = {
+              ...updatedPhotos[originalIndex],
+              status: 'uploading',
+              progress: 0
+            };
+            setPhotos(updatedPhotos);
+          }
+          
           const response = await fetch('/api/upload', {
             method: 'POST',
             body: photoFormData
@@ -906,22 +919,48 @@ export default function PhotoUpload({
           if (!response.ok) {
             const errorResponse = await response.json();
             console.error(`Yükleme hatası (${response.status}):`, errorResponse);
+            
+            // Update UI to show error
+            if (originalIndex !== -1) {
+              const updatedPhotos = [...photos];
+              updatedPhotos[originalIndex] = {
+                ...updatedPhotos[originalIndex],
+                status: 'error',
+                error: errorResponse.error || response.statusText
+              };
+              setPhotos(updatedPhotos);
+            }
+            
             throw new Error(`Fotoğraf ${i+1} yüklenirken hata: ${errorResponse.error || response.statusText}`);
           }
           
           const result = await response.json();
           console.log(`Fotoğraf ${i+1} başarıyla yüklendi: ${result.id}`);
           
+          // Update UI to show success
+          if (originalIndex !== -1) {
+            const updatedPhotos = [...photos];
+            updatedPhotos[originalIndex] = {
+              ...updatedPhotos[originalIndex],
+              id: result.id,
+              url: result.url,
+              status: 'uploaded',
+              progress: 100,
+              isExisting: true
+            };
+            setPhotos(updatedPhotos);
+          }
+          
           uploadedPhotos.push({
             id: result.id,
             url: result.url,
             preview: photo.preview, // Add the preview from the original photo
-            isExisting: false
+            isExisting: true
           });
         } catch (uploadError) {
           console.error(`Fotoğraf ${i+1} yükleme hatası:`, uploadError);
           throw new Error(`Fotoğraf ${i+1} yüklenirken hata oluştu: ${uploadError instanceof Error ? uploadError.message : String(uploadError)}`);
-                  }
+        }
       }
       
       setIsUploading(false);
