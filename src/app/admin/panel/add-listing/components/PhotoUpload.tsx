@@ -9,80 +9,88 @@ import Image from "next/image";
 import { useDrag, useDrop } from "react-dnd";
 import { Loader2 } from "lucide-react";
 
-// Fotoğraf sıkıştırma fonksiyonu
+// Add image compression function
 const compressImage = async (file: File, maxSizeMB: number = 1): Promise<File> => {
-  return new Promise<File>((resolve, reject) => {
-    // Eğer dosya zaten belirtilen boyuttan küçükse, sıkıştırma yapma
-    if (file.size / 1024 / 1024 <= maxSizeMB) {
-      return resolve(file);
+  return new Promise((resolve, reject) => {
+    // Create a canvas to compress the image
+    const img = document.createElement('img');
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    if (!ctx) {
+      reject(new Error('Failed to get canvas context'));
+      return;
     }
-
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = function (event) {
-      // HTMLImageElement kullanarak doğru constructor çağrısı yapıyoruz
-      const img = new window.Image() as HTMLImageElement;
-      if (!event.target || !event.target.result) {
-        return reject(new Error('Failed to read file'));
+    
+    img.onload = () => {
+      // Calculate dimensions while maintaining aspect ratio
+      let { width, height } = img;
+      const MAX_WIDTH = 1920;
+      const MAX_HEIGHT = 1920;
+      
+      if (width > height) {
+        if (width > MAX_WIDTH) {
+          height *= MAX_WIDTH / width;
+          width = MAX_WIDTH;
+        }
+      } else {
+        if (height > MAX_HEIGHT) {
+          width *= MAX_HEIGHT / height;
+          height = MAX_HEIGHT;
+        }
       }
-      img.src = event.target.result as string;
-
-      img.onload = function () {
-        // Orijinal boyutlar
-        let width = img.width;
-        let height = img.height;
-        
-        // Boyutları 2000px'e kadar sınırla, en-boy oranını koru
-        const maxDimension = 2000;
-        if (width > maxDimension || height > maxDimension) {
-          const ratio = width / height;
-          if (width > height) {
-            width = maxDimension;
-            height = Math.round(width / ratio);
-          } else {
-            height = maxDimension;
-            width = Math.round(height * ratio);
+      
+      // Set canvas dimensions and draw
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(img, 0, 0, width, height);
+      
+      // Convert to Blob with reduced quality
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error('Failed to compress image'));
+            return;
           }
-        }
-
-        // Canvas oluştur
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          return reject(new Error('Canvas context could not be created'));
-        }
-        
-        // Resmi canvas'a çiz
-        ctx.drawImage(img, 0, 0, width, height);
-        
-        // Kalite ve çıktı formatını belirle
-        const quality = 0.7; // 0.7 iyi bir denge sağlar
-        const mime = 'image/jpeg'; // JPEG formatı daha iyi sıkıştırma sağlar
-        
-        // Canvas'tan blob oluştur
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) {
-              return reject(new Error('Blob could not be created'));
-            }
-            
-            // Yeni dosya oluştur, orijinal dosya adını koru
-            const newFile = new File([blob], file.name, {
-              type: mime,
+          
+          // If still too large, try again with lower quality
+          if (blob.size > maxSizeMB * 1024 * 1024) {
+            // Try again with lower quality if still too large
+            canvas.toBlob(
+              (reducedBlob) => {
+                if (!reducedBlob) {
+                  reject(new Error('Failed to compress image'));
+                  return;
+                }
+                // Create a new file from the blob
+                const compressedFile = new File([reducedBlob], file.name, {
+                  type: 'image/jpeg',
+                  lastModified: Date.now(),
+                });
+                resolve(compressedFile);
+              },
+              'image/jpeg',
+              0.7 // Lower quality for second attempt
+            );
+          } else {
+            // Create a new file from the blob
+            const compressedFile = new File([blob], file.name, {
+              type: 'image/jpeg',
               lastModified: Date.now(),
             });
-            
-            console.log(`Compressed image: ${file.size / 1024 / 1024}MB -> ${newFile.size / 1024 / 1024}MB`);
-            resolve(newFile);
-          },
-          mime,
-          quality
-        );
-      };
+            resolve(compressedFile);
+          }
+        },
+        'image/jpeg',
+        0.85 // Initial quality
+      );
     };
-    reader.onerror = (error) => reject(error);
+    
+    img.onerror = () => {
+      reject(new Error('Failed to load image for compression'));
+    };
+    
+    img.src = URL.createObjectURL(file);
   });
 };
 
@@ -303,7 +311,6 @@ export default function PhotoUpload({
     }
   }, [formData.photosToDelete]);
 
-  // onDrop fonksiyonunu güncelliyoruz
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     setError(null);
     
@@ -317,210 +324,224 @@ export default function PhotoUpload({
       acceptedFiles = acceptedFiles.slice(0, remainingSlots);
     }
     
-    try {
-      // Her resmi işlemeden önce sıkıştır
-      const compressedFiles: File[] = [];
-      for (const file of acceptedFiles) {
-        try {
-          // Boyutları kontrol et
-          const img = document.createElement('img') as HTMLImageElement;
-          const objectUrl = URL.createObjectURL(file);
-          
-          await new Promise<void>((resolve, reject) => {
-            img.onload = () => {
-              // Check if dimensions are extremely large
-              if (img.width > 8000 || img.height > 8000) {
-                reject(new Error(`${file.name} boyutları çok büyük (${img.width}x${img.height}). Lütfen daha küçük bir fotoğraf yükleyin.`));
-              } else {
-                resolve();
-              }
-            };
-            img.onerror = () => reject(new Error(`${file.name} fotoğrafı yüklenemedi.`));
-            img.src = objectUrl;
-          }).finally(() => {
-            URL.revokeObjectURL(objectUrl);
-          });
-          
-          // Dosyayı sıkıştır (maksimum 2MB olacak şekilde)
-          const compressedFile = await compressImage(file, 2);
-          compressedFiles.push(compressedFile);
-          console.log(`Compressed ${file.name}: ${(file.size / 1024 / 1024).toFixed(2)}MB -> ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`);
-        } catch (err) {
-          if (err instanceof Error) {
-            setError(err.message);
-            return;
-          }
-        }
-      }
-      
-      // Process compressed files
-      const newPhotos = compressedFiles.map(file => ({
-        file,
-        preview: URL.createObjectURL(file),
-        isExisting: false,
-        status: 'uploading' as const,
-        progress: 0
-      }));
-      
-      // Create a copy of photos to avoid reference issues
-      const updatedPhotos = [...photos, ...newPhotos];
-      console.log('Setting photos after drop', updatedPhotos.length);
-      setPhotos(updatedPhotos);
-      
-      // Call updateFormData outside of a setState callback
-      updateFormData({ photos: updatedPhotos, photosToDelete });
-      
-      // If we have a temporary listing ID, upload photos immediately
-      if (tempListingId && selectedCategory) {
-        setIsUploading(true);
+    // Check for large dimension photos and compress all images
+    const processedFiles: File[] = [];
+    
+    for (const file of acceptedFiles) {
+      try {
+        // Create image to check dimensions
+        const img = document.createElement('img') as HTMLImageElement;
+        const objectUrl = URL.createObjectURL(file);
         
-        // Upload each photo individually with progress tracking
-        const uploadPromises = newPhotos.map(async (photo, i) => {
-          const photoIndex = photos.length + i;
-          
-          if (!photo.file) return;
-          
-          try {
-            const photoFormData = new FormData();
-            photoFormData.append('file', photo.file);
-            photoFormData.append('propertyType', selectedCategory);
-            photoFormData.append('listingId', tempListingId);
-            photoFormData.append('index', photoIndex.toString());
-            
-            // Use XMLHttpRequest for progress tracking
-            const uploadWithProgress = () => {
-              return new Promise<{id: string, url: string}>((resolve, reject) => {
-                const xhr = new XMLHttpRequest();
-                
-                // Track upload progress
-                xhr.upload.addEventListener('progress', (event) => {
-                  if (event.lengthComputable) {
-                    const progressPercent = Math.round((event.loaded / event.total) * 100);
-                    
-                    // Update the progress in the photos array
-                    setPhotos(currentPhotos => {
-                      const updatedPhotos = [...currentPhotos];
-                      // Find the correct photo in case order has changed
-                      const targetIndex = updatedPhotos.findIndex(p => 
-                        !p.isExisting && p.file && p.file.name === photo.file?.name && p.file.size === photo.file?.size
-                      );
-                      
-                      if (targetIndex !== -1) {
-                        updatedPhotos[targetIndex] = {
-                          ...updatedPhotos[targetIndex],
-                          progress: progressPercent
-                        };
-                      }
-                      return updatedPhotos;
-                    });
-                  }
-                });
-                
-                // Handle completion
-                xhr.addEventListener('load', () => {
-                  if (xhr.status >= 200 && xhr.status < 300) {
-                    try {
-                      const response = JSON.parse(xhr.responseText);
-                      resolve(response);
-                    } catch (error) {
-                      reject(new Error('Invalid response from server'));
-                    }
-                  } else {
-                    reject(new Error(`Upload failed with status ${xhr.status}`));
-                  }
-                });
-                
-                // Handle errors
-                xhr.addEventListener('error', () => {
-                  reject(new Error('Network error occurred during upload'));
-                });
-                
-                xhr.addEventListener('abort', () => {
-                  reject(new Error('Upload was aborted'));
-                });
-                
-                // Open and send the request
-                xhr.open('POST', '/api/upload');
-                xhr.send(photoFormData);
-              });
-            };
-            
-            // Start the upload
-            const result = await uploadWithProgress();
-            
-            // Update the photo with the uploaded info
-            setPhotos(currentPhotos => {
-              const updatedPhotos = [...currentPhotos];
-              // Find the correct photo in case order has changed
-              const targetIndex = updatedPhotos.findIndex(p => 
-                !p.isExisting && p.file && p.file.name === photo.file?.name && p.file.size === photo.file?.size
-              );
-              
-              if (targetIndex !== -1) {
-                updatedPhotos[targetIndex] = {
-                  ...updatedPhotos[targetIndex],
-                  id: result.id,
-                  url: result.url,
-                  isExisting: true,
-                  status: 'uploaded',
-                  progress: 100
-                };
-              }
-              return updatedPhotos;
-            });
-            
-            // Extract folder path from the first uploaded image
-            if (i === 0 && result.id) {
-              const parts = result.id.split('/');
-              parts.pop(); // Remove the last part (image_X)
-              const folderPath = parts.join('/');
-              setCloudinaryFolder(folderPath);
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => {
+            // Check if dimensions are extremely large
+            if (img.width > 8000 || img.height > 8000) {
+              reject(new Error(`${file.name} boyutları çok büyük (${img.width}x${img.height}). Lütfen daha küçük bir fotoğraf yükleyin.`));
+            } else {
+              resolve();
             }
-            
-            return result;
-          } catch (error) {
-            console.error(`Error uploading photo ${i + 1}:`, error);
-            
-            // Mark the photo as failed
-            setPhotos(currentPhotos => {
-              const updatedPhotos = [...currentPhotos];
-              // Find the correct photo in case order has changed
-              const targetIndex = updatedPhotos.findIndex(p => 
-                !p.isExisting && p.file && p.file.name === photo.file?.name && p.file.size === photo.file?.size
-              );
-              
-              if (targetIndex !== -1) {
-                updatedPhotos[targetIndex] = {
-                  ...updatedPhotos[targetIndex],
-                  status: 'error'
-                };
-              }
-              return updatedPhotos;
-            });
-          }
+          };
+          img.onerror = () => reject(new Error(`${file.name} fotoğrafı yüklenemedi.`));
+          img.src = objectUrl;
+        }).finally(() => {
+          URL.revokeObjectURL(objectUrl);
         });
         
-        try {
-          // Wait for all uploads to complete
-          await Promise.allSettled(uploadPromises);
-          
-          // Update form data with the current photos after all uploads are complete
-          // Don't call setState inside another setState function
-          setPhotos(currentPhotos => {
-            // Important: Need to return the same array to avoid triggering re-render
-            const finalPhotos = [...currentPhotos];
-            updateFormData({ photos: finalPhotos, photosToDelete });
-            return finalPhotos;
-          });
-        } catch (error) {
-          console.error('Error in batch upload:', error);
-        } finally {
-          setIsUploading(false);
+        // Compress the image before adding it
+        const compressedFile = await compressImage(file);
+        processedFiles.push(compressedFile);
+        
+      } catch (err) {
+        if (err instanceof Error) {
+          setError(err.message);
+          return;
         }
       }
-    } catch (error) {
-      console.error('Error processing files:', error);
-      setError('Dosyalar işlenirken bir hata oluştu.');
+    }
+    
+    // Process compressed files
+    const newPhotos = processedFiles.map(file => ({
+      file,
+      preview: URL.createObjectURL(file),
+      isExisting: false,
+      status: 'uploading' as const,
+      progress: 0
+    }));
+    
+    // Create a copy of photos to avoid reference issues
+    const updatedPhotos = [...photos, ...newPhotos];
+    console.log('Setting photos after drop', updatedPhotos.length);
+    setPhotos(updatedPhotos);
+    
+    // Call updateFormData outside of a setState callback
+    updateFormData({ photos: updatedPhotos, photosToDelete });
+    
+    // If we have a temporary listing ID, upload photos immediately
+    if (tempListingId && selectedCategory) {
+      setIsUploading(true);
+      
+      // Upload each photo individually with progress tracking
+      const uploadPromises = newPhotos.map(async (photo, i) => {
+        const photoIndex = photos.length + i;
+        
+        if (!photo.file) return;
+        
+        try {
+          const photoFormData = new FormData();
+          photoFormData.append('file', photo.file);
+          photoFormData.append('propertyType', selectedCategory);
+          photoFormData.append('listingId', tempListingId);
+          photoFormData.append('index', photoIndex.toString());
+          
+          // Use XMLHttpRequest for progress tracking
+          const uploadWithProgress = () => {
+            return new Promise<{id: string, url: string}>((resolve, reject) => {
+              const xhr = new XMLHttpRequest();
+              
+              // Track upload progress
+              xhr.upload.addEventListener('progress', (event) => {
+                if (event.lengthComputable) {
+                  const progressPercent = Math.round((event.loaded / event.total) * 100);
+                  
+                  // Update the progress in the photos array
+                  setPhotos(currentPhotos => {
+                    const updatedPhotos = [...currentPhotos];
+                    // Find the correct photo in case order has changed
+                    const targetIndex = updatedPhotos.findIndex(p => 
+                      !p.isExisting && p.file && p.file.name === photo.file?.name && p.file.size === photo.file?.size
+                    );
+                    
+                    if (targetIndex !== -1) {
+                      updatedPhotos[targetIndex] = {
+                        ...updatedPhotos[targetIndex],
+                        progress: progressPercent
+                      };
+                    }
+                    return updatedPhotos;
+                  });
+                }
+              });
+              
+              // Handle completion
+              xhr.addEventListener('load', () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                  try {
+                    const response = JSON.parse(xhr.responseText);
+                    resolve(response);
+                  } catch (error) {
+                    reject(new Error('Invalid response from server'));
+                  }
+                } else {
+                  reject(new Error(`Upload failed with status ${xhr.status}`));
+                }
+              });
+              
+              // Handle errors
+              xhr.addEventListener('error', () => {
+                console.error('XHR upload error');
+                
+                // Create a more detailed error message for the user
+                let errorMessage = 'Fotoğraf yükleme hatası';
+                
+                if (xhr.status === 413) {
+                  errorMessage = 'Fotoğraf boyutu çok büyük. Lütfen daha küçük bir fotoğraf yükleyin veya sıkıştırılmış bir dosya kullanın.';
+                } else if (xhr.status === 408 || xhr.status === 504) {
+                  errorMessage = 'Yükleme zaman aşımına uğradı. Lütfen daha küçük bir fotoğraf yükleyin veya internet bağlantınızı kontrol edin.';
+                } else if (xhr.status >= 500) {
+                  errorMessage = 'Sunucu hatası. Lütfen daha sonra tekrar deneyin.';
+                }
+                
+                reject(new Error(errorMessage));
+              });
+              
+              // Handle timeouts
+              xhr.addEventListener('timeout', () => {
+                reject(new Error('Yükleme zaman aşımına uğradı. Lütfen daha küçük bir fotoğraf yükleyin veya internet bağlantınızı kontrol edin.'));
+              });
+              
+              xhr.addEventListener('abort', () => {
+                reject(new Error('Upload was aborted'));
+              });
+              
+              // Open and send the request
+              xhr.open('POST', '/api/upload');
+              xhr.send(photoFormData);
+            });
+          };
+          
+          // Start the upload
+          const result = await uploadWithProgress();
+          
+          // Update the photo with the uploaded info
+          setPhotos(currentPhotos => {
+            const updatedPhotos = [...currentPhotos];
+            // Find the correct photo in case order has changed
+            const targetIndex = updatedPhotos.findIndex(p => 
+              !p.isExisting && p.file && p.file.name === photo.file?.name && p.file.size === photo.file?.size
+            );
+            
+            if (targetIndex !== -1) {
+              updatedPhotos[targetIndex] = {
+                ...updatedPhotos[targetIndex],
+                id: result.id,
+                url: result.url,
+                isExisting: true,
+                status: 'uploaded',
+                progress: 100
+              };
+            }
+            return updatedPhotos;
+          });
+          
+          // Extract folder path from the first uploaded image
+          if (i === 0 && result.id) {
+            const parts = result.id.split('/');
+            parts.pop(); // Remove the last part (image_X)
+            const folderPath = parts.join('/');
+            setCloudinaryFolder(folderPath);
+          }
+          
+          return result;
+        } catch (error) {
+          console.error(`Error uploading photo ${i + 1}:`, error);
+          
+          // Mark the photo as failed
+          setPhotos(currentPhotos => {
+            const updatedPhotos = [...currentPhotos];
+            // Find the correct photo in case order has changed
+            const targetIndex = updatedPhotos.findIndex(p => 
+              !p.isExisting && p.file && p.file.name === photo.file?.name && p.file.size === photo.file?.size
+            );
+            
+            if (targetIndex !== -1) {
+              updatedPhotos[targetIndex] = {
+                ...updatedPhotos[targetIndex],
+                status: 'error'
+              };
+            }
+            return updatedPhotos;
+          });
+        }
+      });
+      
+      try {
+        // Wait for all uploads to complete
+        await Promise.allSettled(uploadPromises);
+        
+        // Update form data with the current photos after all uploads are complete
+        // Don't call setState inside another setState function
+        setPhotos(currentPhotos => {
+          // Important: Need to return the same array to avoid triggering re-render
+          const finalPhotos = [...currentPhotos];
+          updateFormData({ photos: finalPhotos, photosToDelete });
+          return finalPhotos;
+        });
+      } catch (error) {
+        console.error('Error in batch upload:', error);
+      } finally {
+        setIsUploading(false);
+      }
     }
   }, [photos, updateFormData, photosToDelete, tempListingId, selectedCategory, setCloudinaryFolder]);
   
@@ -728,7 +749,25 @@ export default function PhotoUpload({
           
           // Handle errors
           xhr.addEventListener('error', () => {
-            reject(new Error('Network error occurred during upload'));
+            console.error('XHR upload error');
+            
+            // Create a more detailed error message for the user
+            let errorMessage = 'Fotoğraf yükleme hatası';
+            
+            if (xhr.status === 413) {
+              errorMessage = 'Fotoğraf boyutu çok büyük. Lütfen daha küçük bir fotoğraf yükleyin veya sıkıştırılmış bir dosya kullanın.';
+            } else if (xhr.status === 408 || xhr.status === 504) {
+              errorMessage = 'Yükleme zaman aşımına uğradı. Lütfen daha küçük bir fotoğraf yükleyin veya internet bağlantınızı kontrol edin.';
+            } else if (xhr.status >= 500) {
+              errorMessage = 'Sunucu hatası. Lütfen daha sonra tekrar deneyin.';
+            }
+            
+            reject(new Error(errorMessage));
+          });
+          
+          // Handle timeouts
+          xhr.addEventListener('timeout', () => {
+            reject(new Error('Yükleme zaman aşımına uğradı. Lütfen daha küçük bir fotoğraf yükleyin veya internet bağlantınızı kontrol edin.'));
           });
           
           xhr.addEventListener('abort', () => {
@@ -907,6 +946,9 @@ export default function PhotoUpload({
             <p className="text-sm text-gray-500">
               veya dosya seçmek için tıklayın (JPG, PNG, WEBP - max: 10MB)
             </p>
+            <p className="text-xs text-amber-600 font-medium">
+              Not: Yüksek çözünürlüklü veya büyük boyutlu fotoğraflar otomatik olarak sıkıştırılacaktır
+            </p>
             {isDragActive && (
               <p className="text-sm font-medium text-[#FFB000]">Dosyaları buraya bırakın...</p>
             )}
@@ -917,10 +959,18 @@ export default function PhotoUpload({
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-4 p-3 rounded-md bg-red-50 border border-red-200 flex items-start"
+            className="mt-4 p-4 rounded-md bg-red-50 border border-red-300 flex items-start"
           >
-            <AlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-red-600">{error}</p>
+            <AlertCircle className="h-5 w-5 text-red-500 mr-3 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-red-700">Yükleme Hatası</p>
+              <p className="text-sm text-red-600 mt-1">{error}</p>
+              {error.includes('boyut') && (
+                <p className="text-xs text-red-600 mt-1">
+                  Çözüm: Fotoğraflarınızı bir resim düzenleme uygulaması ile sıkıştırıp tekrar deneyebilirsiniz.
+                </p>
+              )}
+            </div>
           </motion.div>
         )}
 

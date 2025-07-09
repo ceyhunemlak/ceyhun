@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadToCloudinary, cloudinary } from '@/lib/cloudinary';
 
-// Set larger request size limit for this route (App Router format)
+// Increase maxDuration for processing large files
 export const config = {
   api: {
-    // Next.js App Router için doğru konfigürasyon formatı
     bodyParser: false,
-    responseLimit: '50mb', // Yanıt boyutu sınırı
   },
+  maxDuration: 60,
 };
 
 // Helper function to sanitize title for use in folder names
@@ -39,8 +38,25 @@ const sanitizeTitle = (title: string): string => {
 const folderCache: Record<string, string> = {};
 
 export async function POST(request: NextRequest) {
+  console.log('Upload API called - processing request');
   try {
-    const formData = await request.formData();
+    // Increase timeout for large files
+    const timeout = 60000; // 60 seconds
+    
+    // Get the content-length header to estimate file size
+    const contentLength = request.headers.get('content-length');
+    const estimatedSizeMB = contentLength ? Math.round(parseInt(contentLength) / (1024 * 1024) * 100) / 100 : 'unknown';
+    console.log(`Estimated file size: ${estimatedSizeMB} MB`);
+    
+    // Process form data with appropriate timeout
+    const formDataPromise = request.formData();
+    const formData = await Promise.race([
+      formDataPromise,
+      new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Request timed out')), timeout)
+      )
+    ]) as FormData;
+    
     const file = formData.get('file') as File;
     const propertyType = formData.get('propertyType') as string;
     const listingId = formData.get('listingId') as string;
@@ -55,13 +71,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`Uploading file for listing ${listingId}, index ${index}, existingFolder: ${existingFolder || 'none'}`);
+    console.log(`Uploading file for listing ${listingId}, index ${index}, fileSize: ${Math.round(file.size / 1024)} KB, existingFolder: ${existingFolder || 'none'}`);
 
-    // Convert file to buffer
+    // Process file with chunk-based approach for large files
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
+    
+    // Add file size check and log
+    const fileSizeMB = buffer.length / (1024 * 1024);
+    console.log(`File size: ${fileSizeMB.toFixed(2)} MB`);
+    
+    // Warn about large files
+    if (fileSizeMB > 5) {
+      console.warn(`Processing large file (${fileSizeMB.toFixed(2)} MB). This may take longer.`);
+    }
 
-    // Determine folder path
+    // Determine folder path - existing logic...
     let folder: string;
     
     // If existing folder is provided, use it
@@ -155,15 +180,70 @@ export async function POST(request: NextRequest) {
     
     console.log(`Uploading to folder: ${folder}, publicId: ${publicId}`);
 
-    // Upload to Cloudinary
-    const result = await uploadToCloudinary(buffer, folder, publicId);
-    console.log(`Upload successful. ID: ${result.id}, URL: ${result.url}`);
+    // Upload to Cloudinary with improved error handling
+    try {
+      // Upload to Cloudinary with timeout
+      const uploadPromise = uploadToCloudinary(buffer, folder, publicId);
+      
+      // Add timeout for the upload operation
+      const result = await Promise.race([
+        uploadPromise,
+        new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('Upload timed out')), timeout)
+        )
+      ]);
+      
+      console.log(`Upload successful. ID: ${result.id}, URL: ${result.url}`);
 
-    return NextResponse.json(result);
+      return NextResponse.json(result);
+    } catch (uploadError) {
+      console.error('Error during Cloudinary upload:', uploadError);
+      
+      // Provide more detailed error information
+      const errorMessage = uploadError instanceof Error 
+        ? uploadError.message 
+        : String(uploadError);
+      
+      return NextResponse.json(
+        { 
+          error: 'Failed to upload image to Cloudinary',
+          details: errorMessage,
+          fileSize: `${fileSizeMB.toFixed(2)} MB` 
+        },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     console.error('Error in upload route:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    // Check for timeout errors specifically
+    if (errorMessage.includes('timed out')) {
+      return NextResponse.json(
+        { 
+          error: 'Upload timed out - file may be too large',
+          details: errorMessage
+        },
+        { status: 408 } // Request Timeout
+      );
+    }
+    
+    // Check for content too large errors
+    if (errorMessage.includes('content length')) {
+      return NextResponse.json(
+        { 
+          error: 'File is too large to upload',
+          details: errorMessage
+        },
+        { status: 413 } // Content Too Large
+      );
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to upload image' },
+      { 
+        error: 'Failed to upload image',
+        details: errorMessage 
+      },
       { status: 500 }
     );
   }
