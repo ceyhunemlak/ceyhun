@@ -5,18 +5,6 @@
       "maxDuration": 60
     }
   },
-  "routes": [
-    {
-      "src": "/api/upload",
-      "dest": "/api/upload",
-      "methods": ["POST"],
-      "headers": {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST",
-        "Access-Control-Allow-Headers": "Content-Type"
-      }
-    }
-  ],
   "headers": [
     {
       "source": "/(.*)",
@@ -59,6 +47,26 @@
           "value": "X-Requested-With, Content-Type, Accept"
         }
       ]
+    },
+    {
+      "source": "/api/upload",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "POST"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type"
+        }
+      ]
     }
+  ],
+  "rewrites": [
+    { "source": "/api/upload", "destination": "/api/upload" }
   ]
 } 
