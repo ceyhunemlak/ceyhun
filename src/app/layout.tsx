@@ -5,7 +5,7 @@ import Script from "next/script";
 import "swiper/css";
 import "swiper/css/autoplay";
 import FloatingContact from "@/components/FloatingContact";
-import { Analytics } from "@vercel/analytics/next";
+import { Analytics } from "@vercel/analytics/react";
 
 const inter = Inter({
   subsets: ["latin"],
