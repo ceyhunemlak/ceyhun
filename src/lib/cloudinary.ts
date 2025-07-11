@@ -34,12 +34,12 @@ export const uploadToCloudinary = async (
       resource_type: 'auto' as 'auto',
       use_filename: false,
       unique_filename: false,
-      // Enhanced optimization options
-      quality: 'auto:low', // Automatic quality optimization with lower setting
+      // Improved optimization options
+      quality: 'auto:good', // Changed from auto:low to auto:good for better quality
       fetch_format: 'auto', // Automatic format optimization
       transformation: [
         { 
-          quality: 'auto:low',
+          quality: 'auto:good', // Better quality
           fetch_format: 'auto',
           dpr: 'auto',
           // Resize any large images to reasonable dimensions
@@ -48,7 +48,7 @@ export const uploadToCloudinary = async (
           crop: 'limit'
         }
       ],
-      eager_async: true, // Process transformations asynchronously
+      eager_async: false, // Changed to false to ensure transformations are complete before URL is returned
       format: 'jpg', // Force jpg format for consistency
       chunk_size: 6000000, // Reduced chunk size for uploads (6MB)
     };

@@ -263,12 +263,20 @@ const ListingsGrid = () => {
                     <div className="listing-card bg-white overflow-hidden transition-all duration-500 h-full flex flex-col rounded-2xl card-hover">
                       {/* Image container */}
                       <div className="relative h-64 w-full overflow-hidden flex-shrink-0 group rounded-t-2xl transform-gpu">
+                        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                          <div className="animate-pulse w-8 h-8 rounded-full bg-gray-300"></div>
+                        </div>
                         <Image
                           src={listing.thumbnail_url || "/images/ce.png"}
                           alt={listing.title}
                           className="object-cover transition-transform duration-700 md:group-hover:scale-110"
                           fill
                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+                          onError={(e) => {
+                            console.error(`Failed to load thumbnail: ${listing.thumbnail_url}`);
+                            // Fallback to default image
+                            (e.target as HTMLImageElement).src = "/images/ce.png";
+                          }}
                         />
                         
                         {/* Type tag (top left) and Category tag (next to it) */}

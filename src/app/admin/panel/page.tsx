@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { 
   Card, 
@@ -18,12 +18,26 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
+import { ChevronDown, ChevronUp, ChevronsUpDown, Check, X } from "lucide-react";
 import { Loading } from "@/components/ui/loading";
 import Script from "next/script";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
 
 // Define types for listings and stats
 interface Listing {
@@ -86,6 +100,37 @@ export default function AdminPanel() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Price edit state
+  const [isPriceDialogOpen, setIsPriceDialogOpen] = useState(false);
+  const [selectedListingForPrice, setSelectedListingForPrice] = useState<Listing | null>(null);
+  const [formattedPrice, setFormattedPrice] = useState<string>("");
+  const priceInputRef = useRef<HTMLInputElement>(null);
+  const cursorPositionRef = useRef<number>(0);
+  
+  // Toast notification state
+  const [toast, setToast] = useState<{
+    visible: boolean;
+    message: string;
+    type: "success" | "error";
+  }>({
+    visible: false,
+    message: "",
+    type: "success"
+  });
+
+  // Price form schema
+  const priceFormSchema = z.object({
+    price: z.coerce.number().positive({ message: "Fiyat pozitif bir değer olmalıdır" })
+  });
+
+  // Price form
+  const priceForm = useForm<z.infer<typeof priceFormSchema>>({
+    resolver: zodResolver(priceFormSchema),
+    defaultValues: {
+      price: 0
+    }
+  });
 
   // Fetch listings from API
   useEffect(() => {
@@ -145,19 +190,12 @@ export default function AdminPanel() {
     fetchListings();
   }, []);
 
-  // Filter listings when category changes
+  // Apply filters when category, search, or sort changes
   useEffect(() => {
     if (selectedCategory === 'emlak') {
       const emlakListings = listings.filter(listing => 
         ['konut', 'ticari', 'arsa'].includes(listing.property_type.toLowerCase())
       );
-      
-      // Update available subcategories for this category
-      const subCategories = [...new Set(emlakListings.map(listing => getSubCategory(listing)))];
-      setAvailableSubCategories(subCategories);
-      
-      // Reset subcategory selection when changing main category
-      setSelectedSubCategory(null);
       
       applyFiltersAndSort(emlakListings);
     } else if (selectedCategory === 'vasita') {
@@ -165,19 +203,9 @@ export default function AdminPanel() {
         listing.property_type.toLowerCase() === 'vasita'
       );
       
-      // Update available subcategories for this category
-      const subCategories = [...new Set(vasitaListings.map(listing => getSubCategory(listing)))];
-      setAvailableSubCategories(subCategories);
-      
-      // Reset subcategory selection when changing main category
-      setSelectedSubCategory(null);
-      
       applyFiltersAndSort(vasitaListings);
     } else {
       // All listings
-      const subCategories = [...new Set(listings.map(listing => getSubCategory(listing)))];
-      setAvailableSubCategories(subCategories);
-      
       applyFiltersAndSort(listings);
     }
     // Reset to first page when filters change
@@ -204,9 +232,9 @@ export default function AdminPanel() {
   const applyFiltersAndSort = (baseListings: Listing[]) => {
     let result = [...baseListings];
     
-    // Apply subcategory filter if selected
+    // Apply property type filter if selected
     if (selectedSubCategory) {
-      result = result.filter(listing => getSubCategory(listing) === selectedSubCategory);
+      result = result.filter(listing => listing.property_type.toLowerCase() === selectedSubCategory.toLowerCase());
     }
     
     // Apply listing status filter if selected
@@ -366,18 +394,24 @@ export default function AdminPanel() {
     router.push("/admin");
   };
 
+  // Function to handle adding a new listing
   const handleAddListing = () => {
-    router.push("/admin/panel/add-listing");
+    router.push('/admin/panel/add-listing');
+  };
+
+  // Function to handle editing a listing (open in new tab)
+  const handleEditListing = (id: string) => {
+    window.open(`/admin/panel/add-listing?id=${id}`, '_blank');
   };
 
   // Function to delete a listing
   const handleDeleteListing = async (id: string) => {
-    if (!window.confirm('Bu ilanı silmek istediğinize emin misiniz?')) {
+    if (!confirm('Bu ilanı silmek istediğinizden emin misiniz?')) {
       return;
     }
     
     try {
-      const response = await fetch(`/api/listings?id=${id}`, {
+      const response = await fetch(`/api/listings/${id}`, {
         method: 'DELETE'
       });
       
@@ -385,23 +419,23 @@ export default function AdminPanel() {
         throw new Error('Failed to delete listing');
       }
       
-      // Remove the listing from state
+      // Remove listing from state
       setListings(listings.filter(listing => listing.id !== id));
       
-      // Update stats
+      // Update stats if the listing was active
       const deletedListing = listings.find(listing => listing.id === id);
-      if (deletedListing) {
+      if (deletedListing?.is_active) {
         setStats(prev => ({
           ...prev,
-          totalViews: prev.totalViews - (deletedListing.views_count || 0),
-          contactClicks: prev.contactClicks - (deletedListing.contact_count || 0),
-          activeListings: deletedListing.is_active ? prev.activeListings - 1 : prev.activeListings,
-          topPerforming: prev.topPerforming.filter(item => item.id !== id)
+          activeListings: prev.activeListings - 1
         }));
       }
+      
+      // Show success toast
+      showToast('İlan başarıyla silindi', 'success');
     } catch (error) {
       console.error('Error deleting listing:', error);
-      alert('İlan silinirken bir hata oluştu');
+      showToast('İlan silinirken bir hata oluştu', 'error');
     }
   };
 
@@ -435,9 +469,15 @@ export default function AdminPanel() {
           ? prev.activeListings - 1 
           : prev.activeListings + 1
       }));
+      
+      // Show success toast
+      showToast(
+        currentStatus ? 'İlan pasif duruma getirildi' : 'İlan aktif duruma getirildi', 
+        'success'
+      );
     } catch (error) {
       console.error('Error toggling active status:', error);
-      alert('İlan aktiflik durumu güncellenirken bir hata oluştu');
+      showToast('İlan aktiflik durumu güncellenirken bir hata oluştu', 'error');
     }
   };
 
@@ -463,9 +503,15 @@ export default function AdminPanel() {
       setListings(listings.map(listing => 
         listing.id === id ? { ...listing, is_featured: !currentStatus } : listing
       ));
+      
+      // Show success toast
+      showToast(
+        currentStatus ? 'İlan öne çıkarma kaldırıldı' : 'İlan öne çıkarıldı', 
+        'success'
+      );
     } catch (error) {
       console.error('Error toggling featured status:', error);
-      alert('İlan öne çıkarma durumu güncellenirken bir hata oluştu');
+      showToast('İlan öne çıkarma durumu güncellenirken bir hata oluştu', 'error');
     }
   };
 
@@ -506,10 +552,14 @@ export default function AdminPanel() {
         setFilteredListings([newListing, ...filteredListings]);
       }
       
-      alert('İlan başarıyla çoğaltıldı');
+      // Show success toast
+      showToast('İlan başarıyla çoğaltıldı', 'success');
+      
+      // Open the duplicated listing in a new tab for editing
+      window.open(`/admin/panel/add-listing?id=${newListing.id}`, '_blank');
     } catch (error) {
       console.error('Error duplicating listing:', error);
-      alert('İlan çoğaltılırken bir hata oluştu');
+      showToast('İlan çoğaltılırken bir hata oluştu', 'error');
     }
   };
 
@@ -645,6 +695,141 @@ export default function AdminPanel() {
   // Helper function to format price
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('tr-TR').format(price) + ' ₺';
+  };
+
+  // Function to handle price update
+  const handlePriceEdit = async (id: string, listing: Listing) => {
+    setSelectedListingForPrice(listing);
+    priceForm.setValue("price", listing.price);
+    setFormattedPrice(formatNumberWithDots(listing.price.toString()));
+    setIsPriceDialogOpen(true);
+    
+    // Focus and select the input after dialog opens
+    setTimeout(() => {
+      if (priceInputRef.current) {
+        priceInputRef.current.focus();
+        priceInputRef.current.select();
+      }
+    }, 100);
+  };
+
+  // Function to format number with dots
+  const formatNumberWithDots = (value: string): string => {
+    // Remove any non-digit characters
+    const digits = value.replace(/\D/g, '');
+    
+    // Format with dots
+    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
+  // Function to handle price input change
+  const handlePriceInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const selectionStart = input.selectionStart || 0;
+    const oldValue = formattedPrice;
+    const oldValueWithoutDots = oldValue.replace(/\./g, '');
+    const newValueWithoutDots = input.value.replace(/\./g, '');
+    
+    // Calculate cursor position adjustment
+    let cursorAdjustment = 0;
+    for (let i = 0; i < selectionStart; i++) {
+      if (input.value[i] === '.') {
+        cursorAdjustment++;
+      }
+    }
+    
+    // Store the cursor position relative to the unformatted value
+    const cursorPositionInUnformatted = selectionStart - cursorAdjustment;
+    cursorPositionRef.current = cursorPositionInUnformatted;
+    
+    // Format the new value
+    const formattedNewValue = formatNumberWithDots(input.value);
+    setFormattedPrice(formattedNewValue);
+    
+    // Update the form value with the numeric value
+    priceForm.setValue("price", parseInt(newValueWithoutDots) || 0);
+  };
+
+  // Effect to restore cursor position after formatting
+  useEffect(() => {
+    if (priceInputRef.current) {
+      const input = priceInputRef.current;
+      const unformattedValue = formattedPrice.replace(/\./g, '');
+      
+      // Calculate the new cursor position in the formatted value
+      let newCursorPosition = cursorPositionRef.current;
+      let dotsBeforeCursor = 0;
+      
+      // Count dots that appear before the cursor position
+      const valueBeforeCursor = unformattedValue.substring(0, cursorPositionRef.current);
+      const formattedValueBeforeCursor = formatNumberWithDots(valueBeforeCursor);
+      dotsBeforeCursor = formattedValueBeforeCursor.length - valueBeforeCursor.length;
+      
+      newCursorPosition += dotsBeforeCursor;
+      
+      // Make sure the new position is within bounds
+      newCursorPosition = Math.min(newCursorPosition, formattedPrice.length);
+      
+      // Set the cursor position
+      input.setSelectionRange(newCursorPosition, newCursorPosition);
+    }
+  }, [formattedPrice]);
+
+  // Function to show toast
+  const showToast = (message: string, type: "success" | "error") => {
+    setToast({
+      visible: true,
+      message,
+      type
+    });
+    
+    // Hide toast after 3 seconds
+    setTimeout(() => {
+      setToast(prev => ({ ...prev, visible: false }));
+    }, 3000);
+  };
+
+  // Function to handle price update
+  const handlePriceSubmit = async (values: z.infer<typeof priceFormSchema>) => {
+    if (!selectedListingForPrice) return;
+    
+    try {
+      const response = await fetch('/api/listings/update/price', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: selectedListingForPrice.id,
+          price: values.price
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update price');
+      }
+      
+      // Update the listing in state
+      setListings(listings.map(listing => 
+        listing.id === selectedListingForPrice.id ? { ...listing, price: values.price } : listing
+      ));
+      
+      // Close dialog
+      setIsPriceDialogOpen(false);
+      setSelectedListingForPrice(null);
+      
+      // Show success toast
+      showToast('Fiyat başarıyla güncellendi', 'success');
+    } catch (error) {
+      console.error('Error updating price:', error);
+      showToast('Fiyat güncellenirken bir hata oluştu', 'error');
+    }
+  };
+
+  // Function to navigate to listing detail page
+  const navigateToListingPage = (listing: Listing) => {
+    // Open in a new tab
+    window.open(`/ilan/${listing.id}`, '_blank');
   };
 
   // Pagination Component
@@ -982,25 +1167,23 @@ export default function AdminPanel() {
 
                 {/* Filter Controls - Consistent UI */}
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                  {/* Alt Kategori Filter */}
+                  {/* Property Type Filter */}
                   <div className="flex flex-col gap-1">
                     <Select 
                       value={selectedSubCategory || "all"} 
                       onValueChange={(value) => setSelectedSubCategory(value === "all" ? null : value)}
                     >
                       <SelectTrigger className="w-full h-10">
-                        <SelectValue placeholder="Alt Kategori" />
+                        <SelectValue placeholder="Kategori" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Tümü</SelectItem>
-                        {availableSubCategories.map((subCategory) => (
-                          <SelectItem key={subCategory} value={subCategory}>
-                            {subCategory}
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="konut">Konut</SelectItem>
+                        <SelectItem value="ticari">Ticari</SelectItem>
+                        <SelectItem value="arsa">Arsa</SelectItem>
                       </SelectContent>
                     </Select>
-                    <span className="text-xs text-gray-500 px-1">Konut, Arsa, Otomobil vb.</span>
+                    <span className="text-xs text-gray-500 px-1">Ana kategori</span>
                   </div>
 
                   {/* Satılık/Kiralık Filter */}
@@ -1066,6 +1249,7 @@ export default function AdminPanel() {
                   <CardHeader className="px-3 sm:px-6 pt-3 sm:pt-6 pb-2 sm:pb-4">
                     <CardTitle className="text-base sm:text-lg">
                       Mevcut İlanlar {selectedCategory && `- ${selectedCategory === 'emlak' ? 'Emlak' : 'Vasıta'}`}
+                      {selectedSubCategory && ` - ${formatPropertyType(selectedSubCategory)}`}
                     </CardTitle>
                     <CardDescription className="text-xs sm:text-sm">
                       Tüm ilanları görüntüleyin, düzenleyin veya silin
@@ -1162,7 +1346,10 @@ export default function AdminPanel() {
                                 return (
                                   <tr key={listing.id} className="border-b hover:bg-gray-50">
                                     <td className="py-2 sm:py-3 px-2 sm:px-4 w-16 sm:w-28">
-                                      <div className="w-14 h-14 sm:w-24 sm:h-24 relative rounded-md overflow-hidden border border-gray-200">
+                                      <div 
+                                        className="w-14 h-14 sm:w-24 sm:h-24 relative rounded-md overflow-hidden border border-gray-200 cursor-pointer hover:opacity-80 transition-opacity"
+                                        onClick={() => navigateToListingPage(listing)}
+                                      >
                                         {listing.thumbnail_url ? (
                                           <img 
                                             src={listing.thumbnail_url} 
@@ -1176,7 +1363,12 @@ export default function AdminPanel() {
                                         )}
                                       </div>
                                     </td>
-                                    <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm">{listing.title}</td>
+                                    <td 
+                                      className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm cursor-pointer hover:text-[#FFB000] transition-colors"
+                                      onClick={() => navigateToListingPage(listing)}
+                                    >
+                                      {listing.title}
+                                    </td>
                                     <td className="text-center py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm">
                                       {formatListingStatus(listing.listing_status)}
                                     </td>
@@ -1211,7 +1403,7 @@ export default function AdminPanel() {
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end" className="w-40">
                                           <DropdownMenuItem 
-                                            onClick={() => router.push(`/admin/panel/add-listing?id=${listing.id}`)}
+                                            onClick={() => handleEditListing(listing.id)}
                                           >
                                             Düzenle
                                           </DropdownMenuItem>
@@ -1229,6 +1421,13 @@ export default function AdminPanel() {
                                             onClick={() => handleToggleFeatured(listing.id, listing.is_featured)}
                                           >
                                             {listing.is_featured ? "Öne Çıkarma" : "Öne Çıkar"}
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem 
+                                            onClick={() => {
+                                              handlePriceEdit(listing.id, listing);
+                                            }}
+                                          >
+                                            Fiyat Düzenle
                                           </DropdownMenuItem>
                                           <DropdownMenuSeparator />
                                           <DropdownMenuItem 
@@ -1258,6 +1457,96 @@ export default function AdminPanel() {
           </TabsContent>
         </Tabs>
       </main>
+      
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast.visible && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-md shadow-lg ${
+              toast.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+            }`}
+          >
+            <div className={`p-1 rounded-full ${
+              toast.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+            }`}>
+              {toast.type === 'success' ? <Check size={16} /> : <X size={16} />}
+            </div>
+            <span className={`text-sm font-medium ${
+              toast.type === 'success' ? 'text-green-800' : 'text-red-800'
+            }`}>
+              {toast.message}
+            </span>
+            <button 
+              onClick={() => setToast(prev => ({ ...prev, visible: false }))}
+              className="ml-2 text-gray-500 hover:text-gray-700"
+            >
+              <X size={14} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+      {/* Price Edit Dialog */}
+      <Dialog open={isPriceDialogOpen} onOpenChange={setIsPriceDialogOpen}>
+        <DialogContent className="sm:max-w-[425px] bg-white rounded-lg border-0 shadow-lg">
+          <DialogHeader className="border-b pb-4">
+            <DialogTitle className="text-xl font-bold text-black">Fiyat Düzenle</DialogTitle>
+            <DialogDescription className="text-gray-600">
+              {selectedListingForPrice?.title} için yeni fiyat giriniz
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...priceForm}>
+            <form onSubmit={priceForm.handleSubmit(handlePriceSubmit)} className="space-y-6 pt-4">
+              <FormField
+                control={priceForm.control}
+                name="price"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-sm font-medium text-gray-700">Fiyat</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input 
+                          type="text" 
+                          value={formattedPrice}
+                          onChange={handlePriceInputChange}
+                          placeholder="Fiyat giriniz"
+                          className="pl-3 pr-10 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#FFB000] focus:border-[#FFB000] text-lg font-medium"
+                          ref={priceInputRef}
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">
+                          ₺
+                        </span>
+                      </div>
+                    </FormControl>
+                    <FormMessage className="text-red-500" />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter className="flex gap-3 pt-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsPriceDialogOpen(false)}
+                  className="flex-1 border border-gray-300 hover:bg-gray-100 text-gray-700"
+                >
+                  İptal
+                </Button>
+                <Button 
+                  type="submit"
+                  className="flex-1 bg-[#FFB000] hover:bg-[#FFB000]/90 text-black font-medium"
+                >
+                  Kaydet
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+      
       <Script id="enable-scrollbars" strategy="afterInteractive">
         {`
           document.documentElement.style.overflow = 'auto';

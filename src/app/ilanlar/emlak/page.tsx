@@ -23,6 +23,14 @@ const ImageGallery = ({
   title: string 
 }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  
+  // Reset loading state when image changes
+  useEffect(() => {
+    setImageLoaded(false);
+    setImageError(false);
+  }, [currentImageIndex]);
   
   const nextImage = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -36,14 +44,42 @@ const ImageGallery = ({
     setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
   
+  // Add cache-busting for Cloudinary URLs
+  const addCacheBuster = (url: string) => {
+    if (!url) return "/images/ce.png";
+    if (!url.includes('cloudinary')) return url;
+    
+    // Add a cache-busting parameter
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}cb=${Date.now()}`;
+  };
+  
   return (
     <>
+      {!imageLoaded && !imageError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+          <div className="animate-pulse w-8 h-8 rounded-full bg-gray-300"></div>
+        </div>
+      )}
+      
+      {imageError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+          <div className="text-sm text-gray-500">Resim yüklenemedi</div>
+        </div>
+      )}
+      
       <Image
-        src={images[currentImageIndex]?.url || "/images/ce.png"}
+        src={addCacheBuster(images[currentImageIndex]?.url || "/images/ce.png")}
         alt={title}
-        className="object-cover rounded-lg"
+        className={`object-cover rounded-lg transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
         fill
         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 40vw, 33vw"
+        onLoad={() => setImageLoaded(true)}
+        onError={() => {
+          console.error(`Failed to load image: ${images[currentImageIndex]?.url}`);
+          setImageError(true);
+        }}
+        priority={currentImageIndex === 0} // Prioritize loading the first image
       />
       
       {images.length > 1 && (

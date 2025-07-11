@@ -429,6 +429,16 @@ export default function ListingDetail() {
     return [];
   };
   
+  // Add cache-busting for Cloudinary URLs
+  const addCacheBuster = (url: string) => {
+    if (!url) return "/images/ce.png";
+    if (!url.includes('cloudinary')) return url;
+    
+    // Add a cache-busting parameter
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}cb=${Date.now()}`;
+  };
+  
   // Function to navigate to the previous image
   const goToPrevImage = () => {
     if (listing && getImages().length > 0) {
@@ -447,6 +457,16 @@ export default function ListingDetail() {
     }
   };
   
+  // Image loading state
+  const [mainImageLoaded, setMainImageLoaded] = useState(false);
+  const [mainImageError, setMainImageError] = useState(false);
+  
+  // Reset loading state when active image changes
+  useEffect(() => {
+    setMainImageLoaded(false);
+    setMainImageError(false);
+  }, [activeImageIndex]);
+
   // Close phone dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -527,12 +547,30 @@ export default function ListingDetail() {
                     <div className="relative h-72 sm:h-96 md:h-[500px] w-full">
                       {getImages().length > 0 ? (
                         <>
+                          {!mainImageLoaded && !mainImageError && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                              <div className="animate-pulse w-12 h-12 rounded-full bg-gray-300"></div>
+                            </div>
+                          )}
+                          
+                          {mainImageError && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                              <div className="text-sm text-gray-500">Resim yüklenemedi</div>
+                            </div>
+                          )}
+                          
                           <Image
-                            src={getImages()[activeImageIndex].url}
+                            src={addCacheBuster(getImages()[activeImageIndex].url)}
                             alt={listing.title}
                             fill
-                            className="object-cover"
+                            className={`object-cover transition-opacity duration-300 ${mainImageLoaded ? 'opacity-100' : 'opacity-0'}`}
                             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 66vw, 50vw"
+                            onLoad={() => setMainImageLoaded(true)}
+                            onError={() => {
+                              console.error(`Failed to load image: ${getImages()[activeImageIndex].url}`);
+                              setMainImageError(true);
+                            }}
+                            priority={true}
                           />
                           
                           {/* Navigation Arrows */}
@@ -582,12 +620,20 @@ export default function ListingDetail() {
                                 className={`relative h-20 w-28 flex-shrink-0 rounded-md overflow-hidden cursor-pointer transition-all ${index === activeImageIndex ? 'ring-2 ring-primary' : 'hover:opacity-80'}`}
                                 onClick={() => setActiveImageIndex(index)}
                               >
+                                <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                                  <div className="animate-pulse w-5 h-5 rounded-full bg-gray-300"></div>
+                                </div>
                                 <Image
-                                  src={image.url}
+                                  src={addCacheBuster(image.url)}
                                   alt={`${listing.title} - ${index + 1}`}
                                   fill
                                   className="object-cover"
                                   sizes="112px"
+                                  onError={(e) => {
+                                    console.error(`Failed to load thumbnail: ${image.url}`);
+                                    // Fallback to default image
+                                    (e.target as HTMLImageElement).src = "/images/ce.png";
+                                  }}
                                 />
                               </div>
                             </SwiperSlide>
