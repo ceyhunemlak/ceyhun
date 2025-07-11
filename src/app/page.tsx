@@ -96,7 +96,7 @@ export default function Home() {
       
       {/* Hero Section with Parallax Effect */}
       <div 
-        className="w-full h-auto min-h-[90vh] pt-16 sm:pt-20 pb-6 sm:pb-10 bg-cover bg-center relative overflow-hidden flex items-center"
+        className="w-full h-auto min-h-[100vh] pt-16 sm:pt-20 pb-16 sm:pb-20 bg-cover bg-center relative overflow-hidden flex items-center"
         style={{
           backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('/images/ce.png')`,
           backgroundAttachment: "fixed"
@@ -114,9 +114,9 @@ export default function Home() {
       </div>
       
       {/* Main Content Area */}
-      <main className="flex-grow">
+      <main className="flex-grow mt-10">
         {/* Categories Section */}
-        <div className="py-10 sm:py-16 bg-white">
+        <div className="py-10 sm:py-16 bg-gradient-to-b from-gray-900/10 to-white">
           <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 sm:mb-12">
               <div className="relative">

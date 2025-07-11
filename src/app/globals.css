@@ -43,6 +43,7 @@
     --sidebar-accent-foreground: #000000;
     --sidebar-border: #E5E7EB;
     --sidebar-ring: #FFB000;
+    --scrollbar-width: 0px;
   }
 
   .dark {
@@ -87,21 +88,35 @@
   
   html {
     -webkit-text-size-adjust: 100%; /* Prevent font scaling in landscape */
-    overflow-x: hidden;
+    overflow-x: hidden !important;
     height: -webkit-fill-available; /* Fix for mobile height issues */
     scroll-behavior: smooth;
+    width: 100%;
+    max-width: 100%;
   }
   
   body {
     @apply bg-background text-foreground text-base;
     font-family: var(--font-sans);
-    overflow-x: hidden;
+    overflow-x: hidden !important;
     min-height: 100vh;
     /* Mobile viewport height fix */
     min-height: -webkit-fill-available;
     position: relative;
     touch-action: pan-x pan-y;
     -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  /* Fix for dropdown-related layout issues */
+  [data-state="open"][data-slot="dropdown-menu-content"],
+  [data-state="open"][data-slot="select-content"],
+  [data-state="open"][data-slot="dialog-content"] {
+    position: fixed !important;
+    z-index: 9999 !important;
+    max-width: 90vw !important;
+    overflow-x: hidden !important;
   }
   
   /* Force scrollbars in admin section */

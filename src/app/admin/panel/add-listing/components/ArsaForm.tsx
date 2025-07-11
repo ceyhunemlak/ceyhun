@@ -177,35 +177,39 @@ export default function ArsaForm({ formData, updateFormData, listingType }: Arsa
       <div className="space-y-4">
         <h3 className="text-base font-medium">Ek Özellikler</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
-               onClick={() => handleChange("isExchangeable", !form.isExchangeable)}>
-            <div className="flex items-center justify-center">
-              <div className={`w-5 h-5 rounded border flex items-center justify-center ${form.isExchangeable ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
-                {form.isExchangeable && <Check className="h-3 w-3 text-white stroke-[3]" />}
+          {listingType !== "kiralik" && (
+            <>
+              <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                onClick={() => handleChange("isExchangeable", !form.isExchangeable)}>
+                <div className="flex items-center justify-center">
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center ${form.isExchangeable ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
+                    {form.isExchangeable && <Check className="h-3 w-3 text-white stroke-[3]" />}
+                  </div>
+                </div>
+                <Label 
+                  htmlFor="isExchangeable" 
+                  className="font-medium cursor-pointer flex-1"
+                >
+                  Takas Yapılabilir
+                </Label>
               </div>
-            </div>
-            <Label 
-              htmlFor="isExchangeable" 
-              className="font-medium cursor-pointer flex-1"
-            >
-              Takas Yapılabilir
-            </Label>
-          </div>
 
-          <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
-               onClick={() => handleChange("isEligibleForCredit", !form.isEligibleForCredit)}>
-            <div className="flex items-center justify-center">
-              <div className={`w-5 h-5 rounded border flex items-center justify-center ${form.isEligibleForCredit ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
-                {form.isEligibleForCredit && <Check className="h-3 w-3 text-white stroke-[3]" />}
+              <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                onClick={() => handleChange("isEligibleForCredit", !form.isEligibleForCredit)}>
+                <div className="flex items-center justify-center">
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center ${form.isEligibleForCredit ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
+                    {form.isEligibleForCredit && <Check className="h-3 w-3 text-white stroke-[3]" />}
+                  </div>
+                </div>
+                <Label 
+                  htmlFor="isEligibleForCredit" 
+                  className="font-medium cursor-pointer flex-1"
+                >
+                  Krediye Uygun
+                </Label>
               </div>
-            </div>
-            <Label 
-              htmlFor="isEligibleForCredit" 
-              className="font-medium cursor-pointer flex-1"
-            >
-              Krediye Uygun
-            </Label>
-          </div>
+            </>
+          )}
         </div>
       </div>
     </motion.div>

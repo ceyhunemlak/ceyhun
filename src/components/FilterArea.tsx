@@ -49,6 +49,60 @@ const FilterArea = () => {
     return '';
   };
   
+  // Add effect to prevent layout shift when dropdown opens
+  useEffect(() => {
+    // Get the original body width
+    const originalBodyWidth = document.body.clientWidth;
+    
+    // Function to handle dropdown state changes
+    const handleDropdownStateChange = () => {
+      // Check if any dropdown is open
+      const isDropdownOpen = document.querySelector('[data-state="open"][data-slot="dropdown-menu-content"], [data-state="open"][data-slot="select-content"]');
+      
+      if (isDropdownOpen) {
+        // Calculate scrollbar width
+        const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+        
+        // Apply fixed width to body to prevent layout shift
+        if (scrollbarWidth > 0) {
+          document.body.style.width = `${originalBodyWidth}px`;
+          document.body.style.overflow = 'hidden auto';
+        }
+      } else {
+        // Reset body styles when all dropdowns are closed
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+      }
+    };
+    
+    // Create a MutationObserver to watch for dropdown state changes
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach(mutation => {
+        if (
+          mutation.type === 'attributes' && 
+          mutation.attributeName === 'data-state' && 
+          (mutation.target as Element).hasAttribute('data-slot')
+        ) {
+          handleDropdownStateChange();
+        }
+      });
+    });
+    
+    // Start observing the document
+    observer.observe(document.body, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-state']
+    });
+    
+    // Clean up observer on component unmount
+    return () => {
+      observer.disconnect();
+      document.body.style.width = '';
+      document.body.style.overflow = '';
+    };
+  }, []);
+  
   // Handle price input changes
   const handleMinPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target;

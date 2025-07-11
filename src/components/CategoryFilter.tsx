@@ -104,6 +104,20 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
   // Available neighborhoods based on selected district
   const [neighborhoods, setNeighborhoods] = useState<Neighborhood[]>([]);
   
+  // Add debounce timer for input fields
+  const [debouncedMinPrice, setDebouncedMinPrice] = useState(initialFilters.minPrice || "");
+  const [debouncedMaxPrice, setDebouncedMaxPrice] = useState(initialFilters.maxPrice || "");
+  const [debouncedMinArea, setDebouncedMinArea] = useState(initialFilters.minArea || "");
+  const [debouncedMaxArea, setDebouncedMaxArea] = useState(initialFilters.maxArea || "");
+  const [debouncedKaks, setDebouncedKaks] = useState(initialFilters.kaks || "");
+  const [debouncedBrand, setDebouncedBrand] = useState(initialFilters.brand || "");
+  const [debouncedModel, setDebouncedModel] = useState(initialFilters.model || "");
+  const [debouncedMinYear, setDebouncedMinYear] = useState(initialFilters.minYear || "");
+  const [debouncedMaxYear, setDebouncedMaxYear] = useState(initialFilters.maxYear || "");
+  const [debouncedMinKm, setDebouncedMinKm] = useState(initialFilters.minKm || "");
+  const [debouncedMaxKm, setDebouncedMaxKm] = useState(initialFilters.maxKm || "");
+  const [debouncedColor, setDebouncedColor] = useState(initialFilters.color || "");
+  
   // Format price with dot separators (123.123)
   const formatPrice = (value: string): string => {
     // Remove non-digit characters
@@ -136,6 +150,13 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
       const newPosition = cursorPosition + (newDots - previousDots);
       input.setSelectionRange(newPosition, newPosition);
     }, 0);
+    
+    // Set debounced value after 500ms
+    const timer = setTimeout(() => {
+      setDebouncedMinPrice(formattedValue);
+    }, 500);
+    
+    return () => clearTimeout(timer);
   };
   
   // Handle max price input changes
@@ -154,6 +175,24 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
       const newPosition = cursorPosition + (newDots - previousDots);
       input.setSelectionRange(newPosition, newPosition);
     }, 0);
+    
+    // Set debounced value after 500ms
+    const timer = setTimeout(() => {
+      setDebouncedMaxPrice(formattedValue);
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  };
+  
+  // Handle debounced text input changes
+  const handleDebouncedInputChange = (value: string, setStateFunction: React.Dispatch<React.SetStateAction<string>>, setDebouncedFunction: React.Dispatch<React.SetStateAction<string>>) => {
+    setStateFunction(value);
+    
+    const timer = setTimeout(() => {
+      setDebouncedFunction(value);
+    }, 500);
+    
+    return () => clearTimeout(timer);
   };
   
   // Get unformatted price (remove dots)
@@ -240,6 +279,90 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
     router.push(`/ilanlar/${category}?${params.toString()}`);
   };
   
+  // Auto-apply filters when select values change
+  useEffect(() => {
+    // Don't apply filters on initial render
+    const isInitialRender = 
+      (saleStatus === (initialFilters.listingStatus ? (initialFilters.listingStatus === "kiralik" ? "rent" : "sale") : "")) &&
+      (selectedDistrict === (initialFilters.district || "")) &&
+      (selectedNeighborhood === (initialFilters.neighborhood || "")) &&
+      (mainCategory === (initialFilters.mainCategory || "all")) &&
+      (selectedSubCategory === (initialFilters.mainCategory || "all")) &&
+      (roomCount === (initialFilters.roomCount || "all")) &&
+      (konutType === (initialFilters.konutType || "all")) &&
+      (heatingType === (initialFilters.heatingType || "all")) &&
+      (hasBalcony === (initialFilters.hasBalcony || "all")) &&
+      (hasElevator === (initialFilters.hasElevator || "all")) &&
+      (isFurnished === (initialFilters.isFurnished || "all")) &&
+      (allowsTrade === (initialFilters.allowsTrade || "all")) &&
+      (isEligibleForCredit === (initialFilters.isEligibleForCredit || "all")) &&
+      (ticariType === (initialFilters.konutType || "all")) &&
+      (arsaType === (initialFilters.arsaType || "all")) &&
+      (fuelType === (initialFilters.fuelType || "all")) &&
+      (transmission === (initialFilters.transmission || "all")) &&
+      (hasWarranty === (initialFilters.hasWarranty || "all")) &&
+      (hasDamageRecord === (initialFilters.hasDamageRecord || "all"));
+    
+    if (!isInitialRender) {
+      applyFilters();
+    }
+  }, [
+    saleStatus, 
+    selectedDistrict, 
+    selectedNeighborhood, 
+    mainCategory, 
+    selectedSubCategory,
+    roomCount,
+    konutType,
+    heatingType,
+    hasBalcony,
+    hasElevator,
+    isFurnished,
+    allowsTrade,
+    isEligibleForCredit,
+    ticariType,
+    arsaType,
+    fuelType,
+    transmission,
+    hasWarranty,
+    hasDamageRecord
+  ]);
+  
+  // Auto-apply filters when debounced input values change
+  useEffect(() => {
+    // Don't apply filters on initial render
+    const isInitialRender = 
+      (debouncedMinPrice === (initialFilters.minPrice || "")) &&
+      (debouncedMaxPrice === (initialFilters.maxPrice || "")) &&
+      (debouncedMinArea === (initialFilters.minArea || "")) &&
+      (debouncedMaxArea === (initialFilters.maxArea || "")) &&
+      (debouncedKaks === (initialFilters.kaks || "")) &&
+      (debouncedBrand === (initialFilters.brand || "")) &&
+      (debouncedModel === (initialFilters.model || "")) &&
+      (debouncedMinYear === (initialFilters.minYear || "")) &&
+      (debouncedMaxYear === (initialFilters.maxYear || "")) &&
+      (debouncedMinKm === (initialFilters.minKm || "")) &&
+      (debouncedMaxKm === (initialFilters.maxKm || "")) &&
+      (debouncedColor === (initialFilters.color || ""));
+    
+    if (!isInitialRender) {
+      applyFilters();
+    }
+  }, [
+    debouncedMinPrice,
+    debouncedMaxPrice,
+    debouncedMinArea,
+    debouncedMaxArea,
+    debouncedKaks,
+    debouncedBrand,
+    debouncedModel,
+    debouncedMinYear,
+    debouncedMaxYear,
+    debouncedMinKm,
+    debouncedMaxKm,
+    debouncedColor
+  ]);
+  
   // Reset filters
   const resetFilters = () => {
     // Tüm filtre alanlarını sıfırlıyoruz
@@ -274,6 +397,20 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
     setColor("");
     setHasWarranty("all");
     setHasDamageRecord("all");
+    
+    // Reset debounced values
+    setDebouncedMinPrice("");
+    setDebouncedMaxPrice("");
+    setDebouncedMinArea("");
+    setDebouncedMaxArea("");
+    setDebouncedKaks("");
+    setDebouncedBrand("");
+    setDebouncedModel("");
+    setDebouncedMinYear("");
+    setDebouncedMaxYear("");
+    setDebouncedMinKm("");
+    setDebouncedMaxKm("");
+    setDebouncedColor("");
     
     // Sayfayı yeniliyoruz
     router.push(`/ilanlar/${category}`);
@@ -352,7 +489,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
                   type="text" 
                   placeholder="Min m²" 
                   value={minArea}
-                  onChange={(e) => setMinArea(e.target.value)}
+                  onChange={(e) => handleDebouncedInputChange(e.target.value, setMinArea, setDebouncedMinArea)}
                   className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary"
                 />
               </div>
@@ -361,7 +498,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
                   type="text" 
                   placeholder="Max m²" 
                   value={maxArea}
-                  onChange={(e) => setMaxArea(e.target.value)}
+                  onChange={(e) => handleDebouncedInputChange(e.target.value, setMaxArea, setDebouncedMaxArea)}
                   className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary"
                 />
               </div>
@@ -455,6 +592,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
                 <SelectItem value="dogalgaz">Doğalgaz</SelectItem>
                 <SelectItem value="soba">Soba</SelectItem>
                 <SelectItem value="merkezi">Merkezi</SelectItem>
+                <SelectItem value="klima">Klima</SelectItem>
                 <SelectItem value="yok">Isıtma Yok</SelectItem>
               </SelectContent>
             </Select>
@@ -533,6 +671,8 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
                 <SelectItem value="ofis">Ofis</SelectItem>
                 <SelectItem value="cafe">Cafe</SelectItem>
                 <SelectItem value="bufe">Büfe</SelectItem>
+                <SelectItem value="otobus_hatti">Otobüs Hattı</SelectItem>
+                <SelectItem value="taksi_hatti">Taksi Hattı</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -563,7 +703,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
                 type="text" 
                 placeholder="KAKS/Emsal Değeri" 
                 value={kaks}
-                onChange={(e) => setKaks(e.target.value)}
+                onChange={(e) => handleDebouncedInputChange(e.target.value, setKaks, setDebouncedKaks)}
                 className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary"
               />
             </div>
@@ -580,7 +720,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
                 type="text" 
                 placeholder="Marka" 
                 value={brand}
-                onChange={(e) => setBrand(e.target.value)}
+                onChange={(e) => handleDebouncedInputChange(e.target.value, setBrand, setDebouncedBrand)}
                 className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary"
               />
             </div>
@@ -592,7 +732,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
                 type="text" 
                 placeholder="Model" 
                 value={model}
-                onChange={(e) => setModel(e.target.value)}
+                onChange={(e) => handleDebouncedInputChange(e.target.value, setModel, setDebouncedModel)}
                 className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary"
               />
             </div>
@@ -605,14 +745,14 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
                   type="text" 
                   placeholder="Min Yıl" 
                   value={minYear}
-                  onChange={(e) => setMinYear(e.target.value)}
+                  onChange={(e) => handleDebouncedInputChange(e.target.value, setMinYear, setDebouncedMinYear)}
                   className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary"
                 />
                 <Input 
                   type="text" 
                   placeholder="Max Yıl" 
                   value={maxYear}
-                  onChange={(e) => setMaxYear(e.target.value)}
+                  onChange={(e) => handleDebouncedInputChange(e.target.value, setMaxYear, setDebouncedMaxYear)}
                   className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary"
                 />
               </div>
@@ -626,14 +766,14 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
                   type="text" 
                   placeholder="Min KM" 
                   value={minKm}
-                  onChange={(e) => setMinKm(e.target.value)}
+                  onChange={(e) => handleDebouncedInputChange(e.target.value, setMinKm, setDebouncedMinKm)}
                   className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary"
                 />
                 <Input 
                   type="text" 
                   placeholder="Max KM" 
                   value={maxKm}
-                  onChange={(e) => setMaxKm(e.target.value)}
+                  onChange={(e) => handleDebouncedInputChange(e.target.value, setMaxKm, setDebouncedMaxKm)}
                   className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary"
                 />
               </div>
@@ -869,14 +1009,6 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
         
         {/* Filter Buttons */}
         <div className="flex flex-col gap-2 pt-2">
-          <Button 
-            onClick={applyFilters}
-            className="w-full bg-primary hover:bg-primary/90 text-white flex items-center justify-center gap-2 font-medium"
-          >
-            <Search size={16} />
-            Uygula
-          </Button>
-          
           <Button 
             variant="outline" 
             onClick={resetFilters}

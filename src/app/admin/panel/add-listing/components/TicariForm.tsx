@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,9 +14,10 @@ interface TicariFormProps {
   formData: any;
   updateFormData: (data: any) => void;
   listingType: string; // "satilik" or "kiralik"
+  propertyType?: string; // Add propertyType prop
 }
 
-export default function TicariForm({ formData, updateFormData, listingType }: TicariFormProps) {
+export default function TicariForm({ formData, updateFormData, listingType, propertyType }: TicariFormProps) {
   const [form, setForm] = useState({
     title: formData.title || "",
     description: formData.description || "",
@@ -34,6 +35,17 @@ export default function TicariForm({ formData, updateFormData, listingType }: Ti
 
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [displayPrice, setDisplayPrice] = useState(form.price ? formatPrice(form.price) : "");
+
+  // Set floor to null for villa, fabrika, plaza, or bina
+  useEffect(() => {
+    if (propertyType === "villa" || propertyType === "fabrika" || propertyType === "plaza" || propertyType === "bina") {
+      if (form.floor !== null) {
+        const updatedForm = { ...form, floor: null };
+        setForm(updatedForm);
+        updateFormData(updatedForm);
+      }
+    }
+  }, [propertyType]); // Only run when propertyType changes
 
   const handleChange = (field: string, value: any) => {
     // Convert title to uppercase when it's being entered
@@ -65,9 +77,24 @@ export default function TicariForm({ formData, updateFormData, listingType }: Ti
       case "price":
         return !form.price;
       case "grossArea":
+        // Don't validate grossArea for otobüs hattı or taksi hattı
+        if (propertyType === "otobus_hatti" || propertyType === "taksi_hatti") {
+          return false;
+        }
         return !form.grossArea;
       case "buildingAge":
+        // Don't validate buildingAge for otobüs hattı or taksi hattı
+        if (propertyType === "otobus_hatti" || propertyType === "taksi_hatti") {
+          return false;
+        }
         return !form.buildingAge;
+      case "floor":
+        // Don't validate floor for villa, fabrika, plaza, or bina
+        if (propertyType === "villa" || propertyType === "fabrika" || propertyType === "plaza" || propertyType === "bina" ||
+            propertyType === "otobus_hatti" || propertyType === "taksi_hatti") {
+          return false;
+        }
+        return !form.floor;
       default:
         return false;
     }
@@ -102,6 +129,7 @@ export default function TicariForm({ formData, updateFormData, listingType }: Ti
     { value: "dogalgaz", label: "Doğalgaz" },
     { value: "soba", label: "Soba" },
     { value: "merkezi", label: "Merkezi" },
+    { value: "klima", label: "Klima" },
     { value: "yok", label: "Isıtma Yok" },
   ];
 
@@ -177,181 +205,198 @@ export default function TicariForm({ formData, updateFormData, listingType }: Ti
           )}
         </div>
 
-        <div>
-          <Label htmlFor="grossArea" className="text-base font-medium flex items-center">
-            m² (Brüt) <span className="text-red-500 ml-1">*</span>
-          </Label>
-          <Input
-            id="grossArea"
-            type="number"
-            value={form.grossArea}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange("grossArea", e.target.value)}
-            onBlur={() => handleBlur("grossArea")}
-            placeholder="Brüt Alan"
-            className={`mt-1 ${isFieldInvalid("grossArea") ? "border-red-500 focus-visible:ring-red-500" : ""}`}
-            required
-          />
-          {isFieldInvalid("grossArea") && (
-            <p className="text-red-500 text-sm mt-1">Brüt alan zorunludur</p>
-          )}
-        </div>
+        {/* Only show additional fields if not otobüs hattı or taksi hattı */}
+        {propertyType !== "otobus_hatti" && propertyType !== "taksi_hatti" && (
+          <>
+            <div>
+              <Label htmlFor="grossArea" className="text-base font-medium flex items-center">
+                m² (Brüt) <span className="text-red-500 ml-1">*</span>
+              </Label>
+              <Input
+                id="grossArea"
+                type="number"
+                value={form.grossArea}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange("grossArea", e.target.value)}
+                onBlur={() => handleBlur("grossArea")}
+                placeholder="Brüt Alan"
+                className={`mt-1 ${isFieldInvalid("grossArea") ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                required
+              />
+              {isFieldInvalid("grossArea") && (
+                <p className="text-red-500 text-sm mt-1">Brüt alan zorunludur</p>
+              )}
+            </div>
 
-        <div>
-          <Label htmlFor="netArea" className="text-base font-medium">
-            m² (Net)
-          </Label>
-          <Input
-            id="netArea"
-            type="number"
-            value={form.netArea}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange("netArea", e.target.value)}
-            placeholder="Net Alan"
-            className="mt-1"
-          />
-        </div>
+            <div>
+              <Label htmlFor="netArea" className="text-base font-medium">
+                m² (Net)
+              </Label>
+              <Input
+                id="netArea"
+                type="number"
+                value={form.netArea}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange("netArea", e.target.value)}
+                placeholder="Net Alan"
+                className="mt-1"
+              />
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Room Count, Building Age, Floor */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <Label htmlFor="roomCount" className="text-base font-medium">
-            Oda Sayısı
-          </Label>
-          <Input
-            id="roomCount"
-            type="number"
-            value={form.roomCount}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange("roomCount", e.target.value)}
-            placeholder="Oda sayısı"
-            className="mt-1"
-          />
-        </div>
+      {/* Only show these fields if not otobüs hattı or taksi hattı */}
+      {propertyType !== "otobus_hatti" && propertyType !== "taksi_hatti" && (
+        <>
+          {/* Room Count, Building Age, Floor */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="roomCount" className="text-base font-medium">
+                Oda Sayısı
+              </Label>
+              <Input
+                id="roomCount"
+                type="number"
+                value={form.roomCount}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange("roomCount", e.target.value)}
+                placeholder="Oda sayısı"
+                className="mt-1"
+              />
+            </div>
 
-        <div>
-          <Label htmlFor="buildingAge" className="text-base font-medium flex items-center">
-            Bina Yaşı <span className="text-red-500 ml-1">*</span>
-          </Label>
-          <Select
-            value={form.buildingAge}
-            onValueChange={(value) => handleChange("buildingAge", value)}
-            onOpenChange={() => handleBlur("buildingAge")}
-          >
-            <SelectTrigger id="buildingAge" className={`mt-1 ${isFieldInvalid("buildingAge") ? "border-red-500 focus-visible:ring-red-500" : ""}`}>
-              <SelectValue placeholder="Bina yaşı seçin" />
-            </SelectTrigger>
-            <SelectContent>
-              {buildingAgeOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {isFieldInvalid("buildingAge") && (
-            <p className="text-red-500 text-sm mt-1">Bina yaşı zorunludur</p>
-          )}
-        </div>
+            <div>
+              <Label htmlFor="buildingAge" className="text-base font-medium flex items-center">
+                Bina Yaşı <span className="text-red-500 ml-1">*</span>
+              </Label>
+              <Select
+                value={form.buildingAge}
+                onValueChange={(value) => handleChange("buildingAge", value)}
+                onOpenChange={() => handleBlur("buildingAge")}
+              >
+                <SelectTrigger id="buildingAge" className={`mt-1 ${isFieldInvalid("buildingAge") ? "border-red-500 focus-visible:ring-red-500" : ""}`}>
+                  <SelectValue placeholder="Bina yaşı seçin" />
+                </SelectTrigger>
+                <SelectContent>
+                  {buildingAgeOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {isFieldInvalid("buildingAge") && (
+                <p className="text-red-500 text-sm mt-1">Bina yaşı zorunludur</p>
+              )}
+            </div>
 
-        <div>
-          <Label htmlFor="floor" className="text-base font-medium">
-            Bulunduğu Kat
-          </Label>
-          <Select
-            value={form.floor}
-            onValueChange={(value) => handleChange("floor", value)}
-          >
-            <SelectTrigger id="floor" className="mt-1">
-              <SelectValue placeholder="Bulunduğu kat seçin" />
-            </SelectTrigger>
-            <SelectContent>
-              {floorOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+            {/* Only show floor field for property types that are not villa, fabrika, plaza, or bina */}
+            {propertyType !== "villa" && propertyType !== "fabrika" && propertyType !== "plaza" && propertyType !== "bina" && (
+              <div>
+                <Label htmlFor="floor" className="text-base font-medium">
+                  Bulunduğu Kat
+                </Label>
+                <Select
+                  value={form.floor}
+                  onValueChange={(value) => handleChange("floor", value)}
+                >
+                  <SelectTrigger id="floor" className="mt-1">
+                    <SelectValue placeholder="Bulunduğu kat seçin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {floorOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
 
-      {/* Total Floors and Heating */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="totalFloors" className="text-base font-medium flex items-center">
-            Kat Sayısı
-          </Label>
-          <Select
-            value={form.totalFloors}
-            onValueChange={(value) => handleChange("totalFloors", value)}
-          >
-            <SelectTrigger id="totalFloors" className="mt-1">
-              <SelectValue placeholder="Kat sayısı seçin" />
-            </SelectTrigger>
-            <SelectContent>
-              {totalFloorsOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+          {/* Total Floors and Heating */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="totalFloors" className="text-base font-medium flex items-center">
+                Kat Sayısı
+              </Label>
+              <Select
+                value={form.totalFloors}
+                onValueChange={(value) => handleChange("totalFloors", value)}
+              >
+                <SelectTrigger id="totalFloors" className="mt-1">
+                  <SelectValue placeholder="Kat sayısı seçin" />
+                </SelectTrigger>
+                <SelectContent>
+                  {totalFloorsOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-        <div>
-          <Label htmlFor="heating" className="text-base font-medium flex items-center">
-            Isıtma
-          </Label>
-          <Select
-            value={form.heating}
-            onValueChange={(value) => handleChange("heating", value)}
-          >
-            <SelectTrigger id="heating" className="mt-1">
-              <SelectValue placeholder="Isıtma tipi seçin" />
-            </SelectTrigger>
-            <SelectContent>
-              {heatingOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+            <div>
+              <Label htmlFor="heating" className="text-base font-medium flex items-center">
+                Isıtma
+              </Label>
+              <Select
+                value={form.heating}
+                onValueChange={(value) => handleChange("heating", value)}
+              >
+                <SelectTrigger id="heating" className="mt-1">
+                  <SelectValue placeholder="Isıtma tipi seçin" />
+                </SelectTrigger>
+                <SelectContent>
+                  {heatingOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Additional Features */}
       <div className="space-y-4">
         <h3 className="text-base font-medium">Ek Özellikler</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
-               onClick={() => handleChange("isExchangeable", !form.isExchangeable)}>
-            <div className="flex items-center justify-center">
-              <div className={`w-5 h-5 rounded border flex items-center justify-center ${form.isExchangeable ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
-                {form.isExchangeable && <Check className="h-3 w-3 text-white stroke-[3]" />}
+          {listingType !== "kiralik" && propertyType !== "otobus_hatti" && propertyType !== "taksi_hatti" && (
+            <>
+              <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                onClick={() => handleChange("isExchangeable", !form.isExchangeable)}>
+                <div className="flex items-center justify-center">
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center ${form.isExchangeable ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
+                    {form.isExchangeable && <Check className="h-3 w-3 text-white stroke-[3]" />}
+                  </div>
+                </div>
+                <Label 
+                  htmlFor="isExchangeable" 
+                  className="font-medium cursor-pointer flex-1"
+                >
+                  Takas Yapılabilir
+                </Label>
               </div>
-            </div>
-            <Label 
-              htmlFor="isExchangeable" 
-              className="font-medium cursor-pointer flex-1"
-            >
-              Takas Yapılabilir
-            </Label>
-          </div>
 
-          <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
-               onClick={() => handleChange("isEligibleForCredit", !form.isEligibleForCredit)}>
-            <div className="flex items-center justify-center">
-              <div className={`w-5 h-5 rounded border flex items-center justify-center ${form.isEligibleForCredit ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
-                {form.isEligibleForCredit && <Check className="h-3 w-3 text-white stroke-[3]" />}
+              <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                onClick={() => handleChange("isEligibleForCredit", !form.isEligibleForCredit)}>
+                <div className="flex items-center justify-center">
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center ${form.isEligibleForCredit ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
+                    {form.isEligibleForCredit && <Check className="h-3 w-3 text-white stroke-[3]" />}
+                  </div>
+                </div>
+                <Label 
+                  htmlFor="isEligibleForCredit" 
+                  className="font-medium cursor-pointer flex-1"
+                >
+                  Krediye Uygun
+                </Label>
               </div>
-            </div>
-            <Label 
-              htmlFor="isEligibleForCredit" 
-              className="font-medium cursor-pointer flex-1"
-            >
-              Krediye Uygun
-            </Label>
-          </div>
+            </>
+          )}
         </div>
       </div>
     </motion.div>

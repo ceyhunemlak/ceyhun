@@ -13,7 +13,7 @@ CREATE TYPE konut_type AS ENUM (
 );
 
 CREATE TYPE ticari_type AS ENUM (
-  'dukkan', 'depo', 'villa', 'fabrika', 'atolye', 'plaza', 'bina', 'ofis', 'cafe', 'bufe'
+  'dukkan', 'depo', 'villa', 'fabrika', 'atolye', 'plaza', 'bina', 'ofis', 'cafe', 'bufe', 'otobus_hatti', 'taksi_hatti'
 );
 
 CREATE TYPE arsa_type AS ENUM (
@@ -33,7 +33,7 @@ CREATE TYPE room_count AS ENUM (
 );
 
 CREATE TYPE heating_type AS ENUM (
-  'dogalgaz', 'soba', 'merkezi', 'yok'
+  'dogalgaz', 'soba', 'merkezi', 'yok', 'klima'
 );
 
 CREATE TYPE fuel_type AS ENUM (
@@ -76,7 +76,8 @@ CREATE TABLE konut_details (
   has_elevator BOOLEAN DEFAULT FALSE,
   is_furnished BOOLEAN DEFAULT FALSE,
   allows_trade BOOLEAN DEFAULT FALSE,
-  is_eligible_for_credit BOOLEAN DEFAULT FALSE
+  is_eligible_for_credit BOOLEAN DEFAULT FALSE,
+  apartments_per_floor INTEGER
 );
 
 -- Ticari details table

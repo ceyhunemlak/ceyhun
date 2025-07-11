@@ -65,7 +65,9 @@ const getTypeDisplayName = (category: string, type: string): string => {
       bina: 'Bina',
       ofis: 'Ofis',
       cafe: 'Cafe',
-      bufe: 'Büfe'
+      bufe: 'Büfe',
+      otobus_hatti: 'Otobüs Hattı',
+      taksi_hatti: 'Taksi Hattı'
     },
     arsa: {
       tarla: 'Tarla',
@@ -133,7 +135,9 @@ const CategorySelection = ({
       { id: "bina", name: "Bina" },
       { id: "ofis", name: "Ofis" },
       { id: "cafe", name: "Cafe" },
-      { id: "bufe", name: "Büfe" }
+      { id: "bufe", name: "Büfe" },
+      { id: "otobus_hatti", name: "Otobüs Hattı" },
+      { id: "taksi_hatti", name: "Taksi Hattı" }
     ],
     arsa: [
       { id: "tarla", name: "Tarla" },
@@ -1020,9 +1024,27 @@ export default function AddListing() {
         listingData.konut_type = handleEnumField(selectedType);
         listingData.gross_sqm = parseFloat(formData.grossArea);
         listingData.net_sqm = parseFloat(formData.netArea);
-        listingData.room_count = handleEnumField(formData.roomCount);
+        
+        // Set room_count based on property type
+        if (selectedType === 'bina') {
+          // For buildings, set a default room count
+          listingData.room_count = handleEnumField('1+0');
+          // Add apartments per floor field
+          listingData.apartments_per_floor = parseInt(formData.apartmentsPerFloor);
+        } else {
+          listingData.room_count = handleEnumField(formData.roomCount);
+        }
+        
         listingData.building_age = parseInt(formData.buildingAge);
-        listingData.floor = parseInt(formData.floor || "0"); // Ensure floor is never null
+        
+        // Set floor based on property type
+        if (selectedType === 'villa' || selectedType === 'mustakil_ev' || selectedType === 'bina') {
+          // For villas, detached houses, and buildings, set a default floor
+          listingData.floor = 0;
+        } else {
+          listingData.floor = parseInt(formData.floor || "0");
+        }
+        
         listingData.total_floors = parseInt(formData.totalFloors);
         listingData.heating = handleEnumField(formData.heating);
         listingData.has_balcony = formData.hasBalcony || false;
@@ -1032,15 +1054,36 @@ export default function AddListing() {
         listingData.is_eligible_for_credit = formData.isEligibleForCredit || false;
       } else if (selectedCategory === 'ticari') {
         listingData.ticari_type = handleEnumField(selectedType);
-        listingData.gross_sqm = parseFloat(formData.grossArea);
-        listingData.net_sqm = formData.netArea ? parseFloat(formData.netArea) : null;
-        listingData.room_count = formData.roomCount ? parseInt(formData.roomCount) : null;
-        listingData.building_age = parseInt(formData.buildingAge);
-        listingData.floor = formData.floor ? parseInt(formData.floor) : null;
-        listingData.total_floors = formData.totalFloors ? parseInt(formData.totalFloors) : null;
-        listingData.heating = handleEnumField(formData.heating);
-        listingData.allows_trade = formData.isExchangeable || false;
-        listingData.is_eligible_for_credit = formData.isEligibleForCredit || false;
+        
+        // For otobüs hattı and taksi hattı, set default values for required fields
+        if (selectedType === 'otobus_hatti' || selectedType === 'taksi_hatti') {
+          listingData.gross_sqm = 0; // Set a default value for required field
+          listingData.room_count = 0; // Set a default value for required field
+          listingData.building_age = 0; // Set a default value for required field
+          listingData.floor = null;
+          listingData.total_floors = null;
+          listingData.heating = null;
+          listingData.allows_trade = false;
+          listingData.is_eligible_for_credit = false;
+        } else {
+          // For other ticari types, use the form data
+          listingData.gross_sqm = parseFloat(formData.grossArea);
+          listingData.net_sqm = formData.netArea ? parseFloat(formData.netArea) : null;
+          listingData.room_count = formData.roomCount ? parseInt(formData.roomCount) : null;
+          listingData.building_age = parseInt(formData.buildingAge);
+          
+          // For villa, fabrika, plaza, and bina, set floor to null
+          if (selectedType === 'villa' || selectedType === 'fabrika' || selectedType === 'plaza' || selectedType === 'bina') {
+            listingData.floor = null;
+          } else {
+            listingData.floor = formData.floor ? parseInt(formData.floor) : null;
+          }
+          
+          listingData.total_floors = formData.totalFloors ? parseInt(formData.totalFloors) : null;
+          listingData.heating = handleEnumField(formData.heating);
+          listingData.allows_trade = formData.isExchangeable || false;
+          listingData.is_eligible_for_credit = formData.isEligibleForCredit || false;
+        }
       } else if (selectedCategory === 'arsa') {
         listingData.arsa_type = handleEnumField(selectedType);
         listingData.sqm = parseFloat(formData.sqm);
@@ -1098,11 +1141,11 @@ export default function AddListing() {
 
   const renderStep2Content = () => {
     if (selectedCategory === "konut") {
-      return <KonutForm formData={formData} updateFormData={updateFormData} listingType={listingStatus} />;
+      return <KonutForm formData={formData} updateFormData={updateFormData} listingType={listingStatus} propertyType={selectedType} />;
     }
     
     if (selectedCategory === "ticari") {
-      return <TicariForm formData={formData} updateFormData={updateFormData} listingType={listingStatus} />;
+      return <TicariForm formData={formData} updateFormData={updateFormData} listingType={listingStatus} propertyType={selectedType} />;
     }
     
     if (selectedCategory === "arsa") {

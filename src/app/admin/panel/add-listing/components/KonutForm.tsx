@@ -14,9 +14,10 @@ interface KonutFormProps {
   formData: any;
   updateFormData: (data: any) => void;
   listingType: string; // "satilik" or "kiralik"
+  propertyType?: string; // "daire", "villa", "mustakil_ev", "bina"
 }
 
-export default function KonutForm({ formData, updateFormData, listingType }: KonutFormProps) {
+export default function KonutForm({ formData, updateFormData, listingType, propertyType }: KonutFormProps) {
   const [form, setForm] = useState({
     title: formData.title || "",
     description: formData.description || "",
@@ -34,10 +35,22 @@ export default function KonutForm({ formData, updateFormData, listingType }: Kon
     isExchangeable: formData.isExchangeable || false,
     isSuitableForCredit: formData.isSuitableForCredit || false,
     inSite: formData.inSite || false, // Site içerisinde özelliği eklendi
+    apartmentsPerFloor: formData.apartmentsPerFloor || "", // Bir kattaki daire sayısı
   });
 
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [displayPrice, setDisplayPrice] = useState(form.price ? formatPrice(form.price) : "");
+
+  // Set floor to "zemin" for villa or müstakil ev
+  useEffect(() => {
+    if (propertyType === "villa" || propertyType === "mustakil_ev") {
+      if (form.floor !== "zemin") {
+        const updatedForm = { ...form, floor: "zemin" };
+        setForm(updatedForm);
+        updateFormData(updatedForm);
+      }
+    }
+  }, [propertyType]); // Only run when propertyType changes
 
   const handleChange = (field: string, value: any) => {
     // Convert title to uppercase when it's being entered
@@ -73,13 +86,27 @@ export default function KonutForm({ formData, updateFormData, listingType }: Kon
       case "netArea":
         return !form.netArea;
       case "roomCount":
+        // Don't validate room count if property type is bina
+        if (propertyType === "bina") {
+          return false;
+        }
         return !form.roomCount;
       case "buildingAge":
         return !form.buildingAge;
       case "floor":
+        // Don't validate floor if property type is villa, mustakil_ev, or bina
+        if (propertyType === "villa" || propertyType === "mustakil_ev" || propertyType === "bina") {
+          return false;
+        }
         return !form.floor;
       case "totalFloors":
         return !form.totalFloors;
+      case "apartmentsPerFloor":
+        // Only validate apartments per floor if property type is bina
+        if (propertyType === "bina") {
+          return !form.apartmentsPerFloor;
+        }
+        return false;
       default:
         return false;
     }
@@ -130,6 +157,7 @@ export default function KonutForm({ formData, updateFormData, listingType }: Kon
     { value: "dogalgaz", label: "Doğalgaz" },
     { value: "soba", label: "Soba" },
     { value: "merkezi", label: "Merkezi" },
+    { value: "klima", label: "Klima" },
     { value: "yok", label: "Isıtma Yok" },
   ];
 
@@ -246,33 +274,56 @@ export default function KonutForm({ formData, updateFormData, listingType }: Kon
 
       {/* Room Count, Building Age, Floor */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <Label htmlFor="roomCount" className="text-base font-medium flex items-center">
-            Oda Sayısı <span className="text-red-500 ml-1">*</span>
-          </Label>
-          <Select
-            value={form.roomCount}
-            onValueChange={(value) => handleChange("roomCount", value)}
-            onOpenChange={() => !form.roomCount && handleBlur("roomCount")}
-          >
-            <SelectTrigger 
-              id="roomCount" 
-              className={`mt-1 ${isFieldInvalid("roomCount") ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+        {propertyType !== "bina" && (
+          <div>
+            <Label htmlFor="roomCount" className="text-base font-medium flex items-center">
+              Oda Sayısı <span className="text-red-500 ml-1">*</span>
+            </Label>
+            <Select
+              value={form.roomCount}
+              onValueChange={(value) => handleChange("roomCount", value)}
+              onOpenChange={() => !form.roomCount && handleBlur("roomCount")}
             >
-              <SelectValue placeholder="Oda sayısı seçin" />
-            </SelectTrigger>
-            <SelectContent>
-              {roomOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {isFieldInvalid("roomCount") && (
-            <p className="text-red-500 text-sm mt-1">Oda sayısı zorunludur</p>
-          )}
-        </div>
+              <SelectTrigger 
+                id="roomCount" 
+                className={`mt-1 ${isFieldInvalid("roomCount") ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+              >
+                <SelectValue placeholder="Oda sayısı seçin" />
+              </SelectTrigger>
+              <SelectContent>
+                {roomOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {isFieldInvalid("roomCount") && (
+              <p className="text-red-500 text-sm mt-1">Oda sayısı zorunludur</p>
+            )}
+          </div>
+        )}
+
+        {propertyType === "bina" && (
+          <div>
+            <Label htmlFor="apartmentsPerFloor" className="text-base font-medium flex items-center">
+              Bir Kattaki Daire Sayısı <span className="text-red-500 ml-1">*</span>
+            </Label>
+            <Input
+              id="apartmentsPerFloor"
+              type="number"
+              value={form.apartmentsPerFloor}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange("apartmentsPerFloor", e.target.value)}
+              onBlur={() => handleBlur("apartmentsPerFloor")}
+              placeholder="Bir kattaki daire sayısı"
+              className={`mt-1 ${isFieldInvalid("apartmentsPerFloor") ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+              required
+            />
+            {isFieldInvalid("apartmentsPerFloor") && (
+              <p className="text-red-500 text-sm mt-1">Bir kattaki daire sayısı zorunludur</p>
+            )}
+          </div>
+        )}
 
         <div>
           <Label htmlFor="buildingAge" className="text-base font-medium flex items-center">
@@ -302,33 +353,35 @@ export default function KonutForm({ formData, updateFormData, listingType }: Kon
           )}
         </div>
 
-        <div>
-          <Label htmlFor="floor" className="text-base font-medium flex items-center">
-            Bulunduğu Kat <span className="text-red-500 ml-1">*</span>
-          </Label>
-          <Select
-            value={form.floor}
-            onValueChange={(value) => handleChange("floor", value)}
-            onOpenChange={() => !form.floor && handleBlur("floor")}
-          >
-            <SelectTrigger 
-              id="floor" 
-              className={`mt-1 ${isFieldInvalid("floor") ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+        {propertyType !== "villa" && propertyType !== "mustakil_ev" && propertyType !== "bina" && (
+          <div>
+            <Label htmlFor="floor" className="text-base font-medium flex items-center">
+              Bulunduğu Kat <span className="text-red-500 ml-1">*</span>
+            </Label>
+            <Select
+              value={form.floor}
+              onValueChange={(value) => handleChange("floor", value)}
+              onOpenChange={() => !form.floor && handleBlur("floor")}
             >
-              <SelectValue placeholder="Kat seçin" />
-            </SelectTrigger>
-            <SelectContent>
-              {floorOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {isFieldInvalid("floor") && (
-            <p className="text-red-500 text-sm mt-1">Bulunduğu kat zorunludur</p>
-          )}
-        </div>
+              <SelectTrigger 
+                id="floor" 
+                className={`mt-1 ${isFieldInvalid("floor") ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+              >
+                <SelectValue placeholder="Kat seçin" />
+              </SelectTrigger>
+              <SelectContent>
+                {floorOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {isFieldInvalid("floor") && (
+              <p className="text-red-500 text-sm mt-1">Bulunduğu kat zorunludur</p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Total Floors and Heating */}
@@ -432,35 +485,39 @@ export default function KonutForm({ formData, updateFormData, listingType }: Kon
             </Label>
           </div>
 
-          <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
-               onClick={() => handleChange("isExchangeable", !form.isExchangeable)}>
-            <div className="flex items-center justify-center">
-              <div className={`w-5 h-5 rounded border flex items-center justify-center ${form.isExchangeable ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
-                {form.isExchangeable && <Check className="h-3 w-3 text-white stroke-[3]" />}
+          {listingType !== "kiralik" && (
+            <>
+              <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                onClick={() => handleChange("isExchangeable", !form.isExchangeable)}>
+                <div className="flex items-center justify-center">
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center ${form.isExchangeable ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
+                    {form.isExchangeable && <Check className="h-3 w-3 text-white stroke-[3]" />}
+                  </div>
+                </div>
+                <Label 
+                  htmlFor="isExchangeable" 
+                  className="font-medium cursor-pointer flex-1"
+                >
+                  Takas Yapılabilir
+                </Label>
               </div>
-            </div>
-            <Label 
-              htmlFor="isExchangeable" 
-              className="font-medium cursor-pointer flex-1"
-            >
-              Takas Yapılabilir
-            </Label>
-          </div>
 
-          <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
-               onClick={() => handleChange("isSuitableForCredit", !form.isSuitableForCredit)}>
-            <div className="flex items-center justify-center">
-              <div className={`w-5 h-5 rounded border flex items-center justify-center ${form.isSuitableForCredit ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
-                {form.isSuitableForCredit && <Check className="h-3 w-3 text-white stroke-[3]" />}
+              <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                onClick={() => handleChange("isSuitableForCredit", !form.isSuitableForCredit)}>
+                <div className="flex items-center justify-center">
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center ${form.isSuitableForCredit ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
+                    {form.isSuitableForCredit && <Check className="h-3 w-3 text-white stroke-[3]" />}
+                  </div>
+                </div>
+                <Label 
+                  htmlFor="isSuitableForCredit" 
+                  className="font-medium cursor-pointer flex-1"
+                >
+                  Krediye Uygun
+                </Label>
               </div>
-            </div>
-            <Label 
-              htmlFor="isSuitableForCredit" 
-              className="font-medium cursor-pointer flex-1"
-            >
-              Krediye Uygun
-            </Label>
-          </div>
+            </>
+          )}
 
           <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
                onClick={() => handleChange("inSite", !form.inSite)}>

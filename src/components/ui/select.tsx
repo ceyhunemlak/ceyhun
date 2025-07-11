@@ -71,6 +71,14 @@ function SelectContent({
           className
         )}
         position={position}
+        onCloseAutoFocus={(e) => {
+          // Prevent layout shift when select closes
+          e.preventDefault();
+          const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+          if (scrollbarWidth > 0) {
+            document.body.style.paddingRight = '0px';
+          }
+        }}
         {...props}
       >
         <SelectScrollUpButton />
@@ -82,7 +90,8 @@ function SelectContent({
           )}
           style={{ 
             maxHeight: "var(--radix-select-content-available-height)",
-            overflowY: "auto" 
+            overflowY: "auto",
+            overflowX: "hidden" 
           }}
         >
           {children}
