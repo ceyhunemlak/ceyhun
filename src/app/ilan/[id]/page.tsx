@@ -450,21 +450,9 @@ export default function ListingDetail() {
   // Add cache-busting for Cloudinary URLs
   const addCacheBuster = (url: string) => {
     if (!url) return "/images/ce.png";
-    if (!url.includes('cloudinary')) return url;
     
-    try {
-      // Parse the URL to handle it properly
-      const urlObj = new URL(url);
-      
-      // Add a small random identifier instead of timestamp to reduce cache issues
-      const randomId = Math.floor(Math.random() * 1000).toString();
-      urlObj.searchParams.set('v', randomId);
-      
-      return urlObj.toString();
-    } catch (error) {
-      console.error("Error parsing image URL:", url, error);
-      return url; // Return original URL if parsing fails
-    }
+    // Doğrudan URL'yi döndür, optimizasyon devre dışı bırakıldı
+    return url;
   };
   
   // Function to navigate to the previous image
@@ -591,6 +579,7 @@ export default function ListingDetail() {
                             src={getImages()[activeImageIndex]?.url ? addCacheBuster(getImages()[activeImageIndex].url) : "/images/ce.png"}
                             alt={listing?.title || "İlan görseli"}
                             fill
+                            unoptimized={true}
                             className={`object-cover transition-opacity duration-300 ${mainImageLoaded ? 'opacity-100' : 'opacity-0'}`}
                             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 66vw, 50vw"
                             onLoad={() => setMainImageLoaded(true)}
@@ -655,6 +644,7 @@ export default function ListingDetail() {
                                   src={addCacheBuster(image.url)}
                                   alt={`${listing.title} - ${index + 1}`}
                                   fill
+                                  unoptimized={true}
                                   className="object-cover"
                                   sizes="112px"
                                   onError={(e) => {

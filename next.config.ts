@@ -12,9 +12,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'res.cloudinary.com',
         port: '',
-        pathname: '/dtroqtj02/**',
+        pathname: '/**',
       },
     ],
+    unoptimized: true, // Vercel'de resim optimizasyonunu devre dışı bırak
   },
   typescript: {
     ignoreBuildErrors: true, // Geliştirme sırasında typescript hatalarını görmezden gel
@@ -29,6 +30,28 @@ const nextConfig: NextConfig = {
     inlineCss: true, // CSS'i HTML içine yerleştir
     optimizeCss: true, // Kritik CSS'i otomatik olarak ayırır
   },
+  async headers() {
+    return [
+      {
+        // Tüm rotalar için
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*', // Tüm domainlere izin ver
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET,OPTIONS,PATCH,DELETE,POST,PUT',
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version',
+          }
+        ]
+      }
+    ];
+  }
 };
 
 export default nextConfig;
