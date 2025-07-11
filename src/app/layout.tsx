@@ -56,12 +56,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="tr" className={`${poppins.variable} ${inter.variable} no-scrollbar`}>
+    <html lang="tr" className={`${poppins.variable} ${inter.variable}`}>
       <head>
         <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
-      <body className="antialiased no-scrollbar mobile-scroll-fix">
+      <body className="antialiased mobile-scroll-fix">
         {children}
         
         {/* Script to load stylesheets asynchronously */}

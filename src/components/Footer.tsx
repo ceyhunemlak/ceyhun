@@ -29,7 +29,7 @@ const Footer = () => {
               />
             </div>
             <p className="text-muted-foreground text-sm sm:text-base mb-4 sm:mb-6">
-            Tokat'ın güvenilir emlak ofisi. Satılık-kiralık ev, daire, arsa ve iş yeri ilanları.  
+            Tokat'ın güvenilir emlak ofisi. Satılık-kiralık ev, daire, arsa ve iş yeri ilanları.   
             </p>
             <div className="flex space-x-3 sm:space-x-4">
               <a 

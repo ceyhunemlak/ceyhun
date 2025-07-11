@@ -261,6 +261,7 @@ export default function PhotoUpload({
   const [photosToDelete, setPhotosToDelete] = useState<string[]>(formData.photosToDelete || []);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   // Create a set of existing photo IDs for quick lookup
   const existingPhotoIds = useMemo(() => {
@@ -684,6 +685,95 @@ export default function PhotoUpload({
     console.log('Photos to delete IDs:', newPhotosToDelete);
   };
 
+  // Function to remove all photos
+  const removeAllPhotos = async () => {
+    if (photos.length === 0) return;
+    
+    // Set loading state
+    setIsDeletingAll(true);
+    
+    try {
+      // Create a copy of photosToDelete
+      const updatedPhotosToDelete = [...photosToDelete];
+      
+      // Delete each photo with ID from Cloudinary
+      for (const photo of photos) {
+        if (photo.id) {
+          console.log(`Deleting photo: ${photo.id}`);
+          
+          try {
+            // Call the direct delete API to remove from database and Cloudinary
+            const response = await fetch(`/api/listings/delete-image?id=${encodeURIComponent(photo.id)}`, {
+              method: 'DELETE',
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+              console.log(`Successfully deleted photo ${photo.id} from server`);
+              
+              // Add to photosToDelete list if not already included
+              if (!updatedPhotosToDelete.includes(photo.id)) {
+                updatedPhotosToDelete.push(photo.id);
+              }
+            } else {
+              console.error(`Failed to delete photo ${photo.id} from server:`, result.error);
+              
+              // Try alternative Cloudinary delete method
+              try {
+                const cloudinaryResponse = await fetch(`/api/cloudinary/delete?id=${encodeURIComponent(photo.id)}`, {
+                  method: 'DELETE',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                });
+                
+                const cloudinaryResult = await cloudinaryResponse.json();
+                
+                if (cloudinaryResult.success) {
+                  console.log(`Successfully deleted photo ${photo.id} from Cloudinary`);
+                  
+                  // Add to photosToDelete list if not already included
+                  if (!updatedPhotosToDelete.includes(photo.id)) {
+                    updatedPhotosToDelete.push(photo.id);
+                  }
+                } else {
+                  console.error(`Failed to delete photo ${photo.id} from Cloudinary:`, cloudinaryResult.errors);
+                }
+              } catch (cloudinaryError) {
+                console.error(`Error calling Cloudinary delete API for ${photo.id}:`, cloudinaryError);
+              }
+            }
+          } catch (error) {
+            console.error(`Error deleting photo ${photo.id}:`, error);
+          }
+        }
+        
+        // Release object URL to avoid memory leaks if it's a newly added photo
+        if (!photo.isExisting && photo.preview) {
+          URL.revokeObjectURL(photo.preview);
+        }
+      }
+      
+      // Clear photos from UI
+      setPhotos([]);
+      setPhotosToDelete(updatedPhotosToDelete);
+      
+      // Update form data
+      updateFormData({
+        photos: [],
+        photosToDelete: updatedPhotosToDelete
+      });
+      
+      console.log('All photos removed successfully.');
+    } catch (error) {
+      console.error('Error removing all photos:', error);
+      setError(`Tüm fotoğrafları silerken bir hata oluştu: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`);
+    } finally {
+      setIsDeletingAll(false);
+    }
+  };
+
   const movePhoto = (dragIndex: number, hoverIndex: number) => {
     const draggedPhoto = photos[dragIndex];
     const updatedPhotos = [...photos];
@@ -1013,9 +1103,27 @@ export default function PhotoUpload({
           {photos.length > 0 && (
             <>
               <div className="flex justify-between items-center mb-2">
-                <h3 className="text-lg font-medium">
-                  Yüklenen Fotoğraflar {photos.length > 0 && `(${photos.length}/50)`}
-                </h3>
+                <div className="flex items-center gap-4">
+                  <h3 className="text-lg font-medium">
+                    Yüklenen Fotoğraflar {photos.length > 0 && `(${photos.length}/50)`}
+                  </h3>
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={removeAllPhotos}
+                    disabled={isDeletingAll || photos.length === 0}
+                    className="whitespace-nowrap"
+                  >
+                    {isDeletingAll ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        Siliniyor...
+                      </>
+                    ) : (
+                      'Tümü Sil'
+                    )}
+                  </Button>
+                </div>
                 <p className="text-sm text-[#FFB000]">İlk fotoğraf vitrin fotoğrafı olarak kullanılacak</p>
               </div>
               
@@ -1061,6 +1169,17 @@ export default function PhotoUpload({
         </div>
       )}
       */}
+
+      {/* Show loading indicator when deleting all photos */}
+      {isDeletingAll && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl flex flex-col items-center">
+            <Loader2 className="h-10 w-10 text-red-500 animate-spin mb-4" />
+            <p className="text-lg font-medium">Tüm fotoğraflar siliniyor...</p>
+            <p className="text-sm text-gray-500">Lütfen bekleyiniz...</p>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 } 

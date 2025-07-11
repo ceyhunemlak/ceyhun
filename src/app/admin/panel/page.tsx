@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
 import { Loading } from "@/components/ui/loading";
+import Script from "next/script";
 
 // Define types for listings and stats
 interface Listing {
@@ -70,6 +71,12 @@ export default function AdminPanel() {
     direction: 'ascending' | 'descending' | null;
   }>({ key: 'created_at', direction: 'descending' });
   const [availableSubCategories, setAvailableSubCategories] = useState<string[]>([]);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [paginatedListings, setPaginatedListings] = useState<Listing[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
 
   const [stats, setStats] = useState<Stats>({
     totalViews: 0,
@@ -173,8 +180,26 @@ export default function AdminPanel() {
       
       applyFiltersAndSort(listings);
     }
+    // Reset to first page when filters change
+    setCurrentPage(1);
   }, [selectedCategory, listings, selectedSubCategory, selectedListingStatus, searchQuery, sortConfig, showFeaturedOnly, activeStatusFilter]);
   
+  // Apply pagination when filtered listings or pagination settings change
+  useEffect(() => {
+    const totalPages = Math.ceil(filteredListings.length / itemsPerPage);
+    setTotalPages(totalPages || 1); // Ensure at least 1 page
+    
+    // Adjust current page if it exceeds the new total
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages || 1);
+    }
+    
+    // Calculate paginated listings
+    const startIdx = (currentPage - 1) * itemsPerPage;
+    const endIdx = startIdx + itemsPerPage;
+    setPaginatedListings(filteredListings.slice(startIdx, endIdx));
+  }, [filteredListings, currentPage, itemsPerPage]);
+
   // Function to apply all filters, search, and sorting
   const applyFiltersAndSort = (baseListings: Listing[]) => {
     let result = [...baseListings];
@@ -262,6 +287,49 @@ export default function AdminPanel() {
     setFilteredListings(result);
   };
   
+  // Function to handle page change
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  // Function to handle items per page change
+  const handleItemsPerPageChange = (value: string) => {
+    setItemsPerPage(parseInt(value));
+    setCurrentPage(1); // Reset to first page when changing items per page
+  };
+
+  // Function to get pagination range (for displaying page numbers)
+  const getPaginationRange = () => {
+    const range: number[] = [];
+    const maxButtons = 5; // Max number of page buttons to show
+    
+    if (totalPages <= maxButtons) {
+      // Show all pages if total is less than max buttons
+      for (let i = 1; i <= totalPages; i++) {
+        range.push(i);
+      }
+    } else {
+      // Calculate range with current page in the middle when possible
+      const halfButtons = Math.floor(maxButtons / 2);
+      
+      let startPage = Math.max(1, currentPage - halfButtons);
+      let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+      
+      // Adjust if we're near the end
+      if (endPage - startPage < maxButtons - 1) {
+        startPage = Math.max(1, endPage - maxButtons + 1);
+      }
+      
+      for (let i = startPage; i <= endPage; i++) {
+        range.push(i);
+      }
+    }
+    
+    return range;
+  };
+
   // Function to handle column header click for sorting
   const handleSort = (key: string) => {
     // Don't sort by thumbnail column
@@ -285,12 +353,12 @@ export default function AdminPanel() {
   // Function to get sort icon for column header
   const getSortIcon = (key: string) => {
     if (sortConfig.key !== key) {
-      return <ChevronsUpDown className="ml-1 h-4 w-4 inline" />;
+      return <ChevronsUpDown className="ml-2 h-4 w-4 text-gray-400" />;
     }
     
     return sortConfig.direction === 'ascending' 
-      ? <ChevronUp className="ml-1 h-4 w-4 inline text-[#FFB000]" />
-      : <ChevronDown className="ml-1 h-4 w-4 inline text-[#FFB000]" />;
+      ? <ChevronUp className="ml-2 h-4 w-4 text-[#FFB000]" />
+      : <ChevronDown className="ml-2 h-4 w-4 text-[#FFB000]" />;
   };
 
   const handleLogout = () => {
@@ -579,6 +647,94 @@ export default function AdminPanel() {
     return new Intl.NumberFormat('tr-TR').format(price) + ' ₺';
   };
 
+  // Pagination Component
+  const PaginationControls = () => (
+    <div className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-6 mt-4 mb-2">
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-gray-500">Sayfa başına:</span>
+        <Select 
+          value={itemsPerPage.toString()} 
+          onValueChange={handleItemsPerPageChange}
+        >
+          <SelectTrigger className="w-24 h-10 min-w-[96px]">
+            <SelectValue placeholder={itemsPerPage.toString()} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="5">5</SelectItem>
+            <SelectItem value="10">10</SelectItem>
+            <SelectItem value="20">20</SelectItem>
+            <SelectItem value="50">50</SelectItem>
+            <SelectItem value="100">100</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      
+      <div className="flex items-center gap-1">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => handlePageChange(1)}
+          disabled={currentPage === 1}
+          className="h-10 w-10 p-0 flex items-center justify-center border border-gray-300"
+        >
+          <span className="sr-only">İlk Sayfa</span>
+          <span>«</span>
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="h-10 w-10 p-0 flex items-center justify-center border border-gray-300"
+        >
+          <span className="sr-only">Önceki Sayfa</span>
+          <span>‹</span>
+        </Button>
+        
+        {getPaginationRange().map(page => (
+          <Button 
+            key={page}
+            variant={currentPage === page ? "default" : "outline"} 
+            size="sm" 
+            onClick={() => handlePageChange(page)}
+            className={`h-10 w-10 p-0 flex items-center justify-center border ${
+              currentPage === page 
+                ? "bg-[#FFB000] hover:bg-[#FFB000]/80 text-black border-[#FFB000]" 
+                : "border-gray-300"
+            }`}
+          >
+            {page}
+          </Button>
+        ))}
+        
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="h-10 w-10 p-0 flex items-center justify-center border border-gray-300"
+        >
+          <span className="sr-only">Sonraki Sayfa</span>
+          <span>›</span>
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => handlePageChange(totalPages)}
+          disabled={currentPage === totalPages}
+          className="h-10 w-10 p-0 flex items-center justify-center border border-gray-300"
+        >
+          <span className="sr-only">Son Sayfa</span>
+          <span>»</span>
+        </Button>
+      </div>
+      
+      <div className="text-sm text-gray-500">
+        Toplam: <span className="font-medium">{filteredListings.length}</span> ilan
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -824,15 +980,15 @@ export default function AdminPanel() {
                   />
                 </div>
 
-                {/* Advanced Filters */}
-                <div className="flex flex-wrap gap-3">
+                {/* Filter Controls - Consistent UI */}
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   {/* Alt Kategori Filter */}
-                  <div className="w-full sm:w-auto">
+                  <div className="flex flex-col gap-1">
                     <Select 
                       value={selectedSubCategory || "all"} 
                       onValueChange={(value) => setSelectedSubCategory(value === "all" ? null : value)}
                     >
-                      <SelectTrigger className="w-full sm:w-[180px]">
+                      <SelectTrigger className="w-full h-10">
                         <SelectValue placeholder="Alt Kategori" />
                       </SelectTrigger>
                       <SelectContent>
@@ -844,15 +1000,16 @@ export default function AdminPanel() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <span className="text-xs text-gray-500 px-1">Konut, Arsa, Otomobil vb.</span>
                   </div>
 
                   {/* Satılık/Kiralık Filter */}
-                  <div className="w-full sm:w-auto">
+                  <div className="flex flex-col gap-1">
                     <Select 
                       value={selectedListingStatus || "all"} 
                       onValueChange={(value) => setSelectedListingStatus(value === "all" ? null : value)}
                     >
-                      <SelectTrigger className="w-full sm:w-[180px]">
+                      <SelectTrigger className="w-full h-10">
                         <SelectValue placeholder="Satılık/Kiralık" />
                       </SelectTrigger>
                       <SelectContent>
@@ -861,31 +1018,17 @@ export default function AdminPanel() {
                         <SelectItem value="kiralik">Kiralık</SelectItem>
                       </SelectContent>
                     </Select>
-                  </div>
-
-                  {/* Öne Çıkanlar Butonu */}
-                  <div className="w-full sm:w-auto">
-                    <Button
-                      variant={showFeaturedOnly ? "default" : "outline"}
-                      onClick={() => setShowFeaturedOnly(!showFeaturedOnly)}
-                      className={`w-full sm:w-auto ${
-                        showFeaturedOnly 
-                          ? "bg-[#FFB000] hover:bg-[#FFB000]/80 text-black" 
-                          : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
-                      }`}
-                    >
-                      {showFeaturedOnly ? "Tüm İlanlar" : "Öne Çıkanlar"}
-                    </Button>
+                    <span className="text-xs text-gray-500 px-1">İlan durumu</span>
                   </div>
 
                   {/* Aktif/Pasif Filtresi */}
-                  <div className="w-full sm:w-auto">
+                  <div className="flex flex-col gap-1">
                     <Select 
                       value={activeStatusFilter} 
                       onValueChange={(value) => setActiveStatusFilter(value)}
                     >
-                      <SelectTrigger className="w-full sm:w-[180px]">
-                        <SelectValue placeholder="Aktif/Pasif" />
+                      <SelectTrigger className="w-full h-10">
+                        <SelectValue placeholder="Durum" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Tümü</SelectItem>
@@ -893,6 +1036,24 @@ export default function AdminPanel() {
                         <SelectItem value="passive">Pasif</SelectItem>
                       </SelectContent>
                     </Select>
+                    <span className="text-xs text-gray-500 px-1">Yayında/Yayında değil</span>
+                  </div>
+
+                  {/* Öne Çıkanlar Filtresi */}
+                  <div className="flex flex-col gap-1">
+                    <Select 
+                      value={showFeaturedOnly ? "featured" : "all"} 
+                      onValueChange={(value) => setShowFeaturedOnly(value === "featured")}
+                    >
+                      <SelectTrigger className="w-full h-10">
+                        <SelectValue placeholder="Öne Çıkanlar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tüm İlanlar</SelectItem>
+                        <SelectItem value="featured">Öne Çıkanlar</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <span className="text-xs text-gray-500 px-1">Vitrin ilanları</span>
                   </div>
                 </div>
               </motion.div>
@@ -924,145 +1085,171 @@ export default function AdminPanel() {
                           : 'Henüz ilan bulunmamaktadır'}
                       </div>
                     ) : (
-                      <div className="overflow-x-auto -mx-3 sm:mx-0">
-                        <table className="w-full min-w-[700px]">
-                          <thead>
-                            <tr className="border-b">
-                              <th className="text-left py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm">Vitrin</th>
-                              <th 
-                                className="text-left py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm cursor-pointer"
-                                onClick={() => handleSort('title')}
-                              >
-                                İlan Başlığı {getSortIcon('title')}
-                              </th>
-                              <th 
-                                className="text-center py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm cursor-pointer"
-                                onClick={() => handleSort('listing_status')}
-                              >
-                                Satılık/Kiralık {getSortIcon('listing_status')}
-                              </th>
-                              <th 
-                                className="text-center py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm cursor-pointer"
-                                onClick={() => handleSort('property_type')}
-                              >
-                                Kategori {getSortIcon('property_type')}
-                              </th>
-                              <th 
-                                className="text-center py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm cursor-pointer"
-                                onClick={() => handleSort('sub_category')}
-                              >
-                                Alt Kategori {getSortIcon('sub_category')}
-                              </th>
-                              <th 
-                                className="text-center py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm cursor-pointer"
-                                onClick={() => handleSort('price')}
-                              >
-                                Fiyat {getSortIcon('price')}
-                              </th>
-                              <th 
-                                className="text-center py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm cursor-pointer"
-                                onClick={() => handleSort('is_active')}
-                              >
-                                Durum {getSortIcon('is_active')}
-                              </th>
-                              <th className="text-center py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm">İşlemler</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {filteredListings.map((listing) => {
-                              // Extract property type and subcategory
-                              const propertyType = formatPropertyType(listing.property_type);
-                              // Subcategory would come from the listing data
-                              // This is a placeholder - you'll need to adjust based on your data structure
-                              const subCategory = getSubCategory(listing);
-                              
-                              return (
-                                <tr key={listing.id} className="border-b hover:bg-gray-50">
-                                  <td className="py-2 sm:py-3 px-2 sm:px-4 w-16 sm:w-28">
-                                    <div className="w-14 h-14 sm:w-24 sm:h-24 relative rounded-md overflow-hidden border border-gray-200">
-                                      {listing.thumbnail_url ? (
-                                        <img 
-                                          src={listing.thumbnail_url} 
-                                          alt={listing.title} 
-                                          className="object-cover w-full h-full"
-                                        />
-                                      ) : (
-                                        <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400 text-xs">
-                                          Resim Yok
-                                        </div>
-                                      )}
-                                    </div>
-                                  </td>
-                                  <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm">{listing.title}</td>
-                                  <td className="text-center py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm">
-                                    {formatListingStatus(listing.listing_status)}
-                                  </td>
-                                  <td className="text-center py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm">
-                                    {propertyType}
-                                  </td>
-                                  <td className="text-center py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm">
-                                    {subCategory}
-                                  </td>
-                                  <td className="text-center py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm">
-                                    {formatPrice(listing.price)}
-                                  </td>
-                                  <td className="text-center py-2 sm:py-3 px-2 sm:px-4">
-                                    <span className={`inline-block px-2 py-0.5 sm:py-1 rounded-full text-xs ${
-                                      listing.is_active 
-                                        ? "bg-green-100 text-green-800" 
-                                        : "bg-gray-100 text-gray-800"
-                                    }`}>
-                                      {listing.is_active ? 'Aktif' : 'Pasif'}
-                                    </span>
-                                  </td>
-                                  <td className="text-center py-2 sm:py-3 px-2 sm:px-4">
-                                    <DropdownMenu>
-                                      <DropdownMenuTrigger asChild>
-                                        <Button 
-                                          variant="outline" 
-                                          size="sm" 
-                                          className="h-6 sm:h-8 px-1 sm:px-2 text-xs sm:text-sm"
-                                        >
-                                          İşlemler
-                                        </Button>
-                                      </DropdownMenuTrigger>
-                                      <DropdownMenuContent align="end" className="w-40">
-                                        <DropdownMenuItem 
-                                          onClick={() => router.push(`/admin/panel/add-listing?id=${listing.id}`)}
-                                        >
-                                          Düzenle
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem 
-                                          onClick={() => handleDuplicateListing(listing)}
-                                        >
-                                          İlan Çoğaltma
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem 
-                                          onClick={() => handleToggleStatus(listing.id, listing.is_active)}
-                                        >
-                                          {listing.is_active ? "Pasif Yap" : "Aktif Yap"}
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem 
-                                          onClick={() => handleToggleFeatured(listing.id, listing.is_featured)}
-                                        >
-                                          {listing.is_featured ? "Öne Çıkarma" : "Öne Çıkar"}
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem 
-                                          onClick={() => handleDeleteListing(listing.id)}
-                                          className="text-red-500"
-                                        >
-                                          Sil
-                                        </DropdownMenuItem>
-                                      </DropdownMenuContent>
-                                    </DropdownMenu>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
+                      <>
+                        {/* Top Pagination Controls */}
+                        <PaginationControls />
+                        
+                        <div className="overflow-x-auto -mx-3 sm:mx-0">
+                          <table className="w-full min-w-[700px]">
+                            <thead>
+                              <tr className="border-b">
+                                <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Vitrin</th>
+                                <th 
+                                  className="text-left py-3 px-4 text-sm font-medium text-gray-700 cursor-pointer hover:text-[#FFB000] transition-colors"
+                                  onClick={() => handleSort('title')}
+                                >
+                                  <div className="flex items-center">
+                                    İlan Başlığı
+                                    {getSortIcon('title')}
+                                  </div>
+                                </th>
+                                <th 
+                                  className="text-center py-3 px-4 text-sm font-medium text-gray-700 cursor-pointer hover:text-[#FFB000] transition-colors"
+                                  onClick={() => handleSort('listing_status')}
+                                >
+                                  <div className="flex items-center justify-center">
+                                    Satılık/Kiralık
+                                    {getSortIcon('listing_status')}
+                                  </div>
+                                </th>
+                                <th 
+                                  className="text-center py-3 px-4 text-sm font-medium text-gray-700 cursor-pointer hover:text-[#FFB000] transition-colors"
+                                  onClick={() => handleSort('property_type')}
+                                >
+                                  <div className="flex items-center justify-center">
+                                    Kategori
+                                    {getSortIcon('property_type')}
+                                  </div>
+                                </th>
+                                <th 
+                                  className="text-center py-3 px-4 text-sm font-medium text-gray-700 cursor-pointer hover:text-[#FFB000] transition-colors"
+                                  onClick={() => handleSort('sub_category')}
+                                >
+                                  <div className="flex items-center justify-center">
+                                    Alt Kategori
+                                    {getSortIcon('sub_category')}
+                                  </div>
+                                </th>
+                                <th 
+                                  className="text-center py-3 px-4 text-sm font-medium text-gray-700 cursor-pointer hover:text-[#FFB000] transition-colors"
+                                  onClick={() => handleSort('price')}
+                                >
+                                  <div className="flex items-center justify-center">
+                                    Fiyat
+                                    {getSortIcon('price')}
+                                  </div>
+                                </th>
+                                <th 
+                                  className="text-center py-3 px-4 text-sm font-medium text-gray-700 cursor-pointer hover:text-[#FFB000] transition-colors"
+                                  onClick={() => handleSort('is_active')}
+                                >
+                                  <div className="flex items-center justify-center">
+                                    Durum
+                                    {getSortIcon('is_active')}
+                                  </div>
+                                </th>
+                                <th className="text-center py-3 px-4 text-sm font-medium text-gray-700">İşlemler</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {paginatedListings.map((listing) => {
+                                // Extract property type and subcategory
+                                const propertyType = formatPropertyType(listing.property_type);
+                                // Subcategory would come from the listing data
+                                // This is a placeholder - you'll need to adjust based on your data structure
+                                const subCategory = getSubCategory(listing);
+                                
+                                return (
+                                  <tr key={listing.id} className="border-b hover:bg-gray-50">
+                                    <td className="py-2 sm:py-3 px-2 sm:px-4 w-16 sm:w-28">
+                                      <div className="w-14 h-14 sm:w-24 sm:h-24 relative rounded-md overflow-hidden border border-gray-200">
+                                        {listing.thumbnail_url ? (
+                                          <img 
+                                            src={listing.thumbnail_url} 
+                                            alt={listing.title} 
+                                            className="object-cover w-full h-full"
+                                          />
+                                        ) : (
+                                          <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400 text-xs">
+                                            Resim Yok
+                                          </div>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm">{listing.title}</td>
+                                    <td className="text-center py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm">
+                                      {formatListingStatus(listing.listing_status)}
+                                    </td>
+                                    <td className="text-center py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm">
+                                      {propertyType}
+                                    </td>
+                                    <td className="text-center py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm">
+                                      {subCategory}
+                                    </td>
+                                    <td className="text-center py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm">
+                                      {formatPrice(listing.price)}
+                                    </td>
+                                    <td className="text-center py-2 sm:py-3 px-2 sm:px-4">
+                                      <span className={`inline-block px-2 py-0.5 sm:py-1 rounded-full text-xs ${
+                                        listing.is_active 
+                                          ? "bg-green-100 text-green-800" 
+                                          : "bg-gray-100 text-gray-800"
+                                      }`}>
+                                        {listing.is_active ? 'Aktif' : 'Pasif'}
+                                      </span>
+                                    </td>
+                                    <td className="text-center py-2 sm:py-3 px-2 sm:px-4">
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button 
+                                            variant="outline" 
+                                            size="sm" 
+                                            className="h-6 sm:h-8 px-1 sm:px-2 text-xs sm:text-sm"
+                                          >
+                                            İşlemler
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-40">
+                                          <DropdownMenuItem 
+                                            onClick={() => router.push(`/admin/panel/add-listing?id=${listing.id}`)}
+                                          >
+                                            Düzenle
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem 
+                                            onClick={() => handleDuplicateListing(listing)}
+                                          >
+                                            İlan Çoğaltma
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem 
+                                            onClick={() => handleToggleStatus(listing.id, listing.is_active)}
+                                          >
+                                            {listing.is_active ? "Pasif Yap" : "Aktif Yap"}
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem 
+                                            onClick={() => handleToggleFeatured(listing.id, listing.is_featured)}
+                                          >
+                                            {listing.is_featured ? "Öne Çıkarma" : "Öne Çıkar"}
+                                          </DropdownMenuItem>
+                                          <DropdownMenuSeparator />
+                                          <DropdownMenuItem 
+                                            onClick={() => handleDeleteListing(listing.id)}
+                                            className="text-red-500"
+                                          >
+                                            Sil
+                                          </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                        
+                        {/* Bottom Pagination Controls */}
+                        <PaginationControls />
+                      </>
                     )}
                   </CardContent>
                 </Card>
@@ -1071,6 +1258,12 @@ export default function AdminPanel() {
           </TabsContent>
         </Tabs>
       </main>
+      <Script id="enable-scrollbars" strategy="afterInteractive">
+        {`
+          document.documentElement.style.overflow = 'auto';
+          document.body.style.overflow = 'auto';
+        `}
+      </Script>
     </div>
   );
 } 

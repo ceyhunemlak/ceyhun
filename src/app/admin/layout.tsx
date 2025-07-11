@@ -14,6 +14,16 @@ export default function AdminLayout({
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Add admin-body class to body element
+    document.body.classList.add('admin-body');
+    
+    // Cleanup function to remove class when component unmounts
+    return () => {
+      document.body.classList.remove('admin-body');
+    };
+  }, []);
+
+  useEffect(() => {
     // Check authentication status
     const checkAuth = () => {
       const isAuthenticated = localStorage.getItem("adminAuthenticated") === "true";
@@ -42,5 +52,5 @@ export default function AdminLayout({
     );
   }
 
-  return <>{children}</>;
+  return <div data-path={pathname}>{children}</div>;
 } 

@@ -104,6 +104,57 @@
     -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
   }
   
+  /* Force scrollbars in admin section */
+  body[class*="admin"] {
+    overflow-y: scroll !important;
+    scrollbar-width: thin !important;
+    -ms-overflow-style: scrollbar !important;
+  }
+  
+  body[class*="admin"]::-webkit-scrollbar {
+    display: block !important;
+    width: 6px !important;
+  }
+  
+  body[class*="admin"]::-webkit-scrollbar-track {
+    background: rgba(241, 241, 241, 0.6) !important;
+  }
+  
+  body[class*="admin"]::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.3) !important;
+    border-radius: 10px !important;
+    border: none !important;
+  }
+  
+  body[class*="admin"]::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.5) !important;
+  }
+  
+  /* Direct admin path styling */
+  html:has(body:has([data-path^="/admin"])) {
+    overflow-y: scroll !important;
+    scrollbar-width: thin !important;
+  }
+
+  html:has(body:has([data-path^="/admin"]))::-webkit-scrollbar {
+    display: block !important;
+    width: 6px !important;
+  }
+
+  html:has(body:has([data-path^="/admin"]))::-webkit-scrollbar-track {
+    background: rgba(241, 241, 241, 0.6) !important;
+  }
+
+  html:has(body:has([data-path^="/admin"]))::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.3) !important;
+    border-radius: 10px !important;
+    border: none !important;
+  }
+
+  html:has(body:has([data-path^="/admin"]))::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.5) !important;
+  }
+
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-headings);
     @apply font-medium;
@@ -249,6 +300,31 @@
   
   .hover-shadow {
     @apply transition-shadow duration-300 hover:shadow-lg;
+  }
+  
+  .admin-scrollbar {
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+  }
+  
+  .admin-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    display: block;
+  }
+  
+  .admin-scrollbar::-webkit-scrollbar-track {
+    background: rgba(241, 241, 241, 0.6);
+  }
+  
+  .admin-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    border: none;
+  }
+  
+  .admin-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.5);
   }
   
   .glass-effect {
