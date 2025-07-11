@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -427,30 +427,44 @@ export default function ListingDetail() {
     });
   };
   
-  // Get images
-  const getImages = () => {
-    if (!listing) return [];
-    
-    try {
-      if (listing.images && listing.images.length > 0) {
-        // Sort by order_index
-        return [...listing.images].sort((a, b) => a.order_index - b.order_index);
-      }
-    } catch (error) {
-      console.error('Error getting images:', error);
+  // Get images with error handling
+  const getImages = useCallback(() => {
+    if (!listing || !listing.images || !Array.isArray(listing.images)) {
+      console.warn("No valid images found in listing data");
+      return [{ id: "default", url: "/images/ce.png" }];
     }
     
-    return [];
-  };
+    // Filter out any invalid image objects
+    const validImages = listing.images.filter(img => 
+      img && typeof img === 'object' && img.id && img.url
+    );
+    
+    if (validImages.length === 0) {
+      console.warn("No valid images found in listing data");
+      return [{ id: "default", url: "/images/ce.png" }];
+    }
+    
+    return validImages;
+  }, [listing]);
   
   // Add cache-busting for Cloudinary URLs
   const addCacheBuster = (url: string) => {
     if (!url) return "/images/ce.png";
     if (!url.includes('cloudinary')) return url;
     
-    // Add a cache-busting parameter
-    const separator = url.includes('?') ? '&' : '?';
-    return `${url}${separator}cb=${Date.now()}`;
+    try {
+      // Parse the URL to handle it properly
+      const urlObj = new URL(url);
+      
+      // Add a small random identifier instead of timestamp to reduce cache issues
+      const randomId = Math.floor(Math.random() * 1000).toString();
+      urlObj.searchParams.set('v', randomId);
+      
+      return urlObj.toString();
+    } catch (error) {
+      console.error("Error parsing image URL:", url, error);
+      return url; // Return original URL if parsing fails
+    }
   };
   
   // Function to navigate to the previous image
@@ -574,14 +588,14 @@ export default function ListingDetail() {
                           )}
                           
                           <Image
-                            src={addCacheBuster(getImages()[activeImageIndex].url)}
-                            alt={listing.title}
+                            src={getImages()[activeImageIndex]?.url ? addCacheBuster(getImages()[activeImageIndex].url) : "/images/ce.png"}
+                            alt={listing?.title || "İlan görseli"}
                             fill
                             className={`object-cover transition-opacity duration-300 ${mainImageLoaded ? 'opacity-100' : 'opacity-0'}`}
                             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 66vw, 50vw"
                             onLoad={() => setMainImageLoaded(true)}
                             onError={() => {
-                              console.error(`Failed to load image: ${getImages()[activeImageIndex].url}`);
+                              console.error(`Failed to load image: ${getImages()[activeImageIndex]?.url}`);
                               setMainImageError(true);
                             }}
                             priority={true}

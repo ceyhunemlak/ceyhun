@@ -1,14 +1,26 @@
 import { v2 as cloudinary } from 'cloudinary';
 
+// Ensure we have environment variables
+const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+const apiKey = process.env.CLOUDINARY_API_KEY;
+const apiSecret = process.env.CLOUDINARY_API_SECRET;
+
+// Log configuration status (helpful for debugging)
+if (!cloudName || !apiKey || !apiSecret) {
+  console.error('Missing Cloudinary environment variables!', { 
+    cloudName: !!cloudName, 
+    apiKey: !!apiKey, 
+    apiSecret: !!apiSecret 
+  });
+}
+
 // Configure Cloudinary
 cloudinary.config({
-  cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
+  cloud_name: cloudName,
+  api_key: apiKey,
+  api_secret: apiSecret,
   secure: true
 });
-
-export { cloudinary };
 
 /**
  * Uploads a file to Cloudinary
@@ -53,13 +65,38 @@ export const uploadToCloudinary = async (
       chunk_size: 6000000, // Reduced chunk size for uploads (6MB)
     };
     
-    // Upload to Cloudinary
-    const result = await cloudinary.uploader.upload(base64Data, uploadOptions);
+    // Upload to Cloudinary with retry logic
+    let attempts = 0;
+    const maxAttempts = 3;
+    let lastError = null;
     
-    return {
-      id: result.public_id,
-      url: result.secure_url
-    };
+    while (attempts < maxAttempts) {
+      try {
+        const result = await cloudinary.uploader.upload(base64Data, uploadOptions);
+        
+        // Verify the result has the expected fields
+        if (!result.public_id || !result.secure_url) {
+          throw new Error('Invalid response from Cloudinary');
+        }
+        
+        return {
+          id: result.public_id,
+          url: result.secure_url
+        };
+      } catch (error) {
+        lastError = error;
+        attempts++;
+        if (attempts < maxAttempts) {
+          // Wait before retrying (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+          console.log(`Retrying upload attempt ${attempts}/${maxAttempts}`);
+        }
+      }
+    }
+    
+    // If we've exhausted all attempts
+    console.error('Error uploading to Cloudinary after multiple attempts:', lastError);
+    throw new Error('Failed to upload image to Cloudinary after multiple attempts');
   } catch (error) {
     console.error('Error uploading to Cloudinary:', error);
     throw new Error('Failed to upload image to Cloudinary');
@@ -97,98 +134,51 @@ export const deleteCloudinaryImage = async (publicId: string): Promise<boolean> 
       // Continue to next method
     }
     
-    // Method 2: Destroy with explicit resource type
-    try {
-      console.log(`Method 2: Explicit resource type destroy for ${publicId}`);
-      const result = await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
-      console.log(`Method 2 result:`, result);
-      
-      if (result.result === 'ok' || result.result === 'not found') {
-        success = true;
-        console.log(`Successfully deleted image ${publicId} using explicit resource type`);
-        return true;
-      } else {
-        errors.push(`Explicit resource type destroy failed: ${result.result}`);
+    // Method 2: Explicit resource type
+    if (!success) {
+      try {
+        console.log(`Method 2: Explicit resource type for ${publicId}`);
+        const result = await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+        console.log(`Method 2 result:`, result);
+        
+        if (result.result === 'ok' || result.result === 'not found') {
+          success = true;
+          console.log(`Successfully deleted image ${publicId} using explicit resource type`);
+          return true;
+        } else {
+          errors.push(`Explicit resource type failed: ${result.result}`);
+        }
+      } catch (error) {
+        console.error(`Error in Method 2 (explicit resource type) for ${publicId}:`, error);
+        errors.push(`Explicit resource type error: ${error instanceof Error ? error.message : String(error)}`);
+        // Continue to next method
       }
-    } catch (error) {
-      console.error(`Error in Method 2 (explicit resource type) for ${publicId}:`, error);
-      errors.push(`Explicit resource type error: ${error instanceof Error ? error.message : String(error)}`);
-      // Continue to next method
     }
     
-    // Method 3: Admin API delete_resources
-    try {
-      console.log(`Method 3: Admin API delete_resources for ${publicId}`);
-      const result = await cloudinary.api.delete_resources([publicId], { resource_type: 'image' });
-      console.log(`Method 3 result:`, result);
-      
-      // Check if the deletion was successful by examining the result
-      if (result && result.deleted && result.deleted[publicId] === 'deleted') {
+    // Method 3: Admin API
+    if (!success) {
+      try {
+        console.log(`Method 3: Admin API for ${publicId}`);
+        const result = await cloudinary.api.delete_resources([publicId], { resource_type: 'image' });
+        console.log(`Method 3 result:`, result);
+        
         success = true;
         console.log(`Successfully deleted image ${publicId} using admin API`);
         return true;
-      } else {
-        errors.push(`Admin API delete_resources failed`);
+      } catch (error) {
+        console.error(`Error in Method 3 (admin API) for ${publicId}:`, error);
+        errors.push(`Admin API error: ${error instanceof Error ? error.message : String(error)}`);
       }
-    } catch (error) {
-      console.error(`Error in Method 3 (admin API) for ${publicId}:`, error);
-      errors.push(`Admin API error: ${error instanceof Error ? error.message : String(error)}`);
-      // Continue to next method
     }
     
-    // Method 4: Try to delete with auto resource type detection
-    try {
-      console.log(`Method 4: Auto resource type detection for ${publicId}`);
-      
-      // Try to determine the resource type
-      let resourceType = 'image';
-      
-      // Check if it's a video
-      if (publicId.toLowerCase().endsWith('.mp4') || 
-          publicId.toLowerCase().endsWith('.mov') || 
-          publicId.toLowerCase().endsWith('.avi')) {
-        resourceType = 'video';
-      }
-      
-      // Try with the detected resource type
-      const result = await cloudinary.uploader.destroy(publicId, { resource_type: resourceType as any });
-      console.log(`Method 4 result:`, result);
-      
-      if (result.result === 'ok' || result.result === 'not found') {
-        success = true;
-        console.log(`Successfully deleted ${publicId} using auto resource type detection (${resourceType})`);
-        return true;
-      } else {
-        errors.push(`Auto resource type detection failed: ${result.result}`);
-      }
-    } catch (error) {
-      console.error(`Error in Method 4 (auto resource type) for ${publicId}:`, error);
-      errors.push(`Auto resource type error: ${error instanceof Error ? error.message : String(error)}`);
+    if (!success) {
+      console.error(`Failed to delete image ${publicId} using all methods. Errors:`, errors);
+      return false;
     }
     
-    // Method 5: Last resort - try with raw resource type
-    try {
-      console.log(`Method 5: Raw resource type for ${publicId}`);
-      const result = await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
-      console.log(`Method 5 result:`, result);
-      
-      if (result.result === 'ok' || result.result === 'not found') {
-        success = true;
-        console.log(`Successfully deleted ${publicId} using raw resource type`);
-        return true;
-      } else {
-        errors.push(`Raw resource type failed: ${result.result}`);
-      }
-    } catch (error) {
-      console.error(`Error in Method 5 (raw resource type) for ${publicId}:`, error);
-      errors.push(`Raw resource type error: ${error instanceof Error ? error.message : String(error)}`);
-    }
-    
-    // If we got here, all methods failed
-    console.error(`All deletion methods failed for ${publicId}. Errors:`, errors);
     return success;
   } catch (error) {
-    console.error(`Unexpected error in deleteCloudinaryImage for ${publicId}:`, error);
+    console.error(`Unexpected error deleting image ${publicId}:`, error);
     return false;
   }
 };
@@ -461,3 +451,6 @@ export const deleteCloudinaryFolder = async (folderPath: string): Promise<boolea
     return false;
   }
 }; 
+
+// Export cloudinary instance for direct use
+export { cloudinary }; 

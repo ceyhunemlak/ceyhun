@@ -48,9 +48,19 @@ const ImageGallery = ({
     if (!url) return "/images/ce.png";
     if (!url.includes('cloudinary')) return url;
     
-    // Add a cache-busting parameter
-    const separator = url.includes('?') ? '&' : '?';
-    return `${url}${separator}cb=${Date.now()}`;
+    try {
+      // Parse the URL to handle it properly
+      const urlObj = new URL(url);
+      
+      // Add a small random identifier instead of timestamp to reduce cache issues
+      const randomId = Math.floor(Math.random() * 1000).toString();
+      urlObj.searchParams.set('v', randomId);
+      
+      return urlObj.toString();
+    } catch (error) {
+      console.error("Error parsing image URL:", url, error);
+      return url; // Return original URL if parsing fails
+    }
   };
   
   return (
@@ -68,7 +78,7 @@ const ImageGallery = ({
       )}
       
       <Image
-        src={addCacheBuster(images[currentImageIndex]?.url || "/images/ce.png")}
+        src={images[currentImageIndex]?.url ? addCacheBuster(images[currentImageIndex].url) : "/images/ce.png"}
         alt={title}
         className={`object-cover rounded-lg transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
         fill
