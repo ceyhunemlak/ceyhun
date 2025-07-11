@@ -114,7 +114,7 @@ export default function Home() {
       </div>
       
       {/* Main Content Area */}
-      <main className="flex-grow mt-10">
+      <main className="flex-grow">
         {/* Categories Section */}
         <div className="py-10 sm:py-16 bg-gradient-to-b from-gray-900/10 to-white">
           <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12">

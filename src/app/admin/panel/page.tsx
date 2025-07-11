@@ -38,6 +38,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
+import Image from "next/image";
 
 // Define types for listings and stats
 interface Listing {
@@ -108,6 +109,11 @@ export default function AdminPanel() {
   const priceInputRef = useRef<HTMLInputElement>(null);
   const cursorPositionRef = useRef<number>(0);
   
+  // Title edit state
+  const [isTitleDialogOpen, setIsTitleDialogOpen] = useState(false);
+  const [selectedListingForTitle, setSelectedListingForTitle] = useState<Listing | null>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  
   // Toast notification state
   const [toast, setToast] = useState<{
     visible: boolean;
@@ -119,6 +125,10 @@ export default function AdminPanel() {
     type: "success"
   });
 
+  // Delete confirmation dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [listingToDelete, setListingToDelete] = useState<string | null>(null);
+
   // Price form schema
   const priceFormSchema = z.object({
     price: z.coerce.number().positive({ message: "Fiyat pozitif bir değer olmalıdır" })
@@ -129,6 +139,19 @@ export default function AdminPanel() {
     resolver: zodResolver(priceFormSchema),
     defaultValues: {
       price: 0
+    }
+  });
+  
+  // Title form schema
+  const titleFormSchema = z.object({
+    title: z.string().min(1, { message: "Başlık boş olamaz" })
+  });
+
+  // Title form
+  const titleForm = useForm<z.infer<typeof titleFormSchema>>({
+    resolver: zodResolver(titleFormSchema),
+    defaultValues: {
+      title: ""
     }
   });
 
@@ -406,12 +429,18 @@ export default function AdminPanel() {
 
   // Function to delete a listing
   const handleDeleteListing = async (id: string) => {
-    if (!confirm('Bu ilanı silmek istediğinizden emin misiniz?')) {
-      return;
-    }
+    // Open the delete confirmation dialog
+    setListingToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  // Function to confirm deletion
+  const confirmDelete = async () => {
+    if (!listingToDelete) return;
     
     try {
-      const response = await fetch(`/api/listings/${id}`, {
+      // Use the correct API endpoint with query parameter
+      const response = await fetch(`/api/listings?id=${listingToDelete}`, {
         method: 'DELETE'
       });
       
@@ -420,10 +449,10 @@ export default function AdminPanel() {
       }
       
       // Remove listing from state
-      setListings(listings.filter(listing => listing.id !== id));
+      setListings(listings.filter(listing => listing.id !== listingToDelete));
       
       // Update stats if the listing was active
-      const deletedListing = listings.find(listing => listing.id === id);
+      const deletedListing = listings.find(listing => listing.id === listingToDelete);
       if (deletedListing?.is_active) {
         setStats(prev => ({
           ...prev,
@@ -436,7 +465,17 @@ export default function AdminPanel() {
     } catch (error) {
       console.error('Error deleting listing:', error);
       showToast('İlan silinirken bir hata oluştu', 'error');
+    } finally {
+      // Close the dialog and reset the listing to delete
+      setDeleteDialogOpen(false);
+      setListingToDelete(null);
     }
+  };
+
+  // Function to cancel deletion
+  const cancelDelete = () => {
+    setDeleteDialogOpen(false);
+    setListingToDelete(null);
   };
 
   // Function to toggle listing active status
@@ -825,6 +864,58 @@ export default function AdminPanel() {
       showToast('Fiyat güncellenirken bir hata oluştu', 'error');
     }
   };
+  
+  // Function to handle title edit
+  const handleTitleEdit = async (id: string, listing: Listing) => {
+    setSelectedListingForTitle(listing);
+    titleForm.setValue("title", listing.title);
+    setIsTitleDialogOpen(true);
+    
+    // Focus and select the input after dialog opens
+    setTimeout(() => {
+      if (titleInputRef.current) {
+        titleInputRef.current.focus();
+        titleInputRef.current.select();
+      }
+    }, 100);
+  };
+  
+  // Function to handle title update
+  const handleTitleSubmit = async (values: z.infer<typeof titleFormSchema>) => {
+    if (!selectedListingForTitle) return;
+    
+    try {
+      const response = await fetch('/api/listings/update/title', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: selectedListingForTitle.id,
+          title: values.title
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update title');
+      }
+      
+      // Update the listing in state
+      setListings(listings.map(listing => 
+        listing.id === selectedListingForTitle.id ? { ...listing, title: values.title } : listing
+      ));
+      
+      // Close dialog
+      setIsTitleDialogOpen(false);
+      setSelectedListingForTitle(null);
+      
+      // Show success toast
+      showToast('Başlık başarıyla güncellendi', 'success');
+    } catch (error) {
+      console.error('Error updating title:', error);
+      showToast('Başlık güncellenirken bir hata oluştu', 'error');
+    }
+  };
 
   // Function to navigate to listing detail page
   const navigateToListingPage = (listing: Listing) => {
@@ -926,6 +1017,17 @@ export default function AdminPanel() {
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex justify-between items-center">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Admin Panel</h1>
+          <div className="flex-1 flex justify-center">
+            <a href="/" className="flex items-center">
+              <Image 
+                src="/images/logo_black.png" 
+                alt="Ceyhun Gayrimenkul Logo" 
+                width={120}
+                height={40}
+                className="h-10 w-auto object-contain" 
+              />
+            </a>
+          </div>
           <Button 
             variant="outline" 
             onClick={handleLogout}
@@ -1351,9 +1453,10 @@ export default function AdminPanel() {
                                         onClick={() => navigateToListingPage(listing)}
                                       >
                                         {listing.thumbnail_url ? (
-                                          <img 
+                                          <Image 
                                             src={listing.thumbnail_url} 
                                             alt={listing.title} 
+                                            fill
                                             className="object-cover w-full h-full"
                                           />
                                         ) : (
@@ -1365,7 +1468,7 @@ export default function AdminPanel() {
                                     </td>
                                     <td 
                                       className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm cursor-pointer hover:text-[#FFB000] transition-colors"
-                                      onClick={() => navigateToListingPage(listing)}
+                                      onDoubleClick={() => handleTitleEdit(listing.id, listing)}
                                     >
                                       {listing.title}
                                     </td>
@@ -1378,7 +1481,10 @@ export default function AdminPanel() {
                                     <td className="text-center py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm">
                                       {subCategory}
                                     </td>
-                                    <td className="text-center py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm">
+                                    <td 
+                                      className="text-center py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm cursor-pointer hover:text-[#FFB000] transition-colors"
+                                      onDoubleClick={() => handlePriceEdit(listing.id, listing)}
+                                    >
                                       {formatPrice(listing.price)}
                                     </td>
                                     <td className="text-center py-2 sm:py-3 px-2 sm:px-4">
@@ -1428,6 +1534,13 @@ export default function AdminPanel() {
                                             }}
                                           >
                                             Fiyat Düzenle
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem 
+                                            onClick={() => {
+                                              handleTitleEdit(listing.id, listing);
+                                            }}
+                                          >
+                                            Başlık Düzenle
                                           </DropdownMenuItem>
                                           <DropdownMenuSeparator />
                                           <DropdownMenuItem 
@@ -1492,15 +1605,15 @@ export default function AdminPanel() {
       
       {/* Price Edit Dialog */}
       <Dialog open={isPriceDialogOpen} onOpenChange={setIsPriceDialogOpen}>
-        <DialogContent className="sm:max-w-[425px] bg-white rounded-lg border-0 shadow-lg">
-          <DialogHeader className="border-b pb-4">
-            <DialogTitle className="text-xl font-bold text-black">Fiyat Düzenle</DialogTitle>
-            <DialogDescription className="text-gray-600">
+        <DialogContent className="max-w-[90vw] w-[400px] bg-white rounded-lg border-0 shadow-lg p-4">
+          <DialogHeader className="border-b pb-3">
+            <DialogTitle className="text-lg font-bold text-black">Fiyat Düzenle</DialogTitle>
+            <DialogDescription className="text-gray-600 text-sm break-words">
               {selectedListingForPrice?.title} için yeni fiyat giriniz
             </DialogDescription>
           </DialogHeader>
           <Form {...priceForm}>
-            <form onSubmit={priceForm.handleSubmit(handlePriceSubmit)} className="space-y-6 pt-4">
+            <form onSubmit={priceForm.handleSubmit(handlePriceSubmit)} className="space-y-4 pt-3">
               <FormField
                 control={priceForm.control}
                 name="price"
@@ -1526,7 +1639,7 @@ export default function AdminPanel() {
                   </FormItem>
                 )}
               />
-              <DialogFooter className="flex gap-3 pt-2">
+              <DialogFooter className="flex gap-2 pt-3 mt-2">
                 <Button 
                   type="button" 
                   variant="outline" 
@@ -1546,6 +1659,87 @@ export default function AdminPanel() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      {/* Title Edit Dialog */}
+      <Dialog open={isTitleDialogOpen} onOpenChange={setIsTitleDialogOpen}>
+        <DialogContent className="max-w-[90vw] w-[400px] bg-white rounded-lg border-0 shadow-lg p-4">
+          <DialogHeader className="border-b pb-3">
+            <DialogTitle className="text-lg font-bold text-black">Başlık Düzenle</DialogTitle>
+            <DialogDescription className="text-gray-600 text-sm break-words">
+              {selectedListingForTitle?.property_type && formatPropertyType(selectedListingForTitle.property_type)} ilanı için yeni başlık giriniz
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...titleForm}>
+            <form onSubmit={titleForm.handleSubmit(handleTitleSubmit)} className="space-y-4 pt-3">
+              <FormField
+                control={titleForm.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-sm font-medium text-gray-700">Başlık</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="text" 
+                        {...field}
+                        placeholder="Başlık giriniz"
+                        className="pl-3 pr-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#FFB000] focus:border-[#FFB000] text-lg font-medium"
+                        ref={titleInputRef}
+                      />
+                    </FormControl>
+                    <FormMessage className="text-red-500" />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter className="flex gap-2 pt-3 mt-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsTitleDialogOpen(false)}
+                  className="flex-1 border border-gray-300 hover:bg-gray-100 text-gray-700"
+                >
+                  İptal
+                </Button>
+                <Button 
+                  type="submit" 
+                  className="flex-1 bg-[#FFB000] hover:bg-[#FFB000]/90 text-black font-medium"
+                >
+                  Kaydet
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+             {/* Delete Confirmation Dialog */}
+       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+         <DialogContent className="max-w-[90vw] w-[400px] bg-white rounded-lg border-0 shadow-lg p-4">
+           <DialogHeader className="border-b pb-3">
+             <DialogTitle className="text-lg font-bold text-black">İlanı Sil</DialogTitle>
+             <DialogDescription className="text-gray-600 text-sm break-words">
+               {listingToDelete ? `Bu ilanı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.` : ''}
+             </DialogDescription>
+           </DialogHeader>
+           <DialogFooter className="flex gap-2 pt-3 mt-2">
+             <Button 
+               type="button" 
+               variant="outline" 
+               onClick={cancelDelete}
+               className="flex-1 border border-gray-300 hover:bg-gray-100 text-gray-700"
+             >
+               İptal
+             </Button>
+             <Button 
+               type="button" 
+               variant="destructive" 
+               onClick={confirmDelete}
+               className="flex-1 bg-red-500 hover:bg-red-600 text-white font-medium"
+             >
+               Sil
+             </Button>
+           </DialogFooter>
+         </DialogContent>
+       </Dialog>
       
       <Script id="enable-scrollbars" strategy="afterInteractive">
         {`

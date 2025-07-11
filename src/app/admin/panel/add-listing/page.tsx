@@ -1088,6 +1088,7 @@ export default function AddListing() {
         listingData.arsa_type = handleEnumField(selectedType);
         listingData.sqm = parseFloat(formData.sqm);
         listingData.kaks = formData.kaks ? parseFloat(formData.kaks) : null;
+        listingData.tapu_durumu = formData.tapuDurumu ? handleEnumField(formData.tapuDurumu) : null;
         listingData.allows_trade = formData.isExchangeable || false;
         listingData.is_eligible_for_credit = formData.isEligibleForCredit || false;
       } else if (selectedCategory === 'vasita') {
@@ -1668,26 +1669,27 @@ export default function AddListing() {
 
       {/* Confirmation Dialog */}
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>İlanı {isEditMode ? 'Güncelle' : 'Tamamla'}</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="max-w-[90vw] w-[400px] bg-white rounded-lg border-0 shadow-lg p-4">
+          <DialogHeader className="border-b pb-3">
+            <DialogTitle className="text-lg font-bold text-black">İlanı {isEditMode ? 'Güncelle' : 'Tamamla'}</DialogTitle>
+            <DialogDescription className="text-gray-600 text-sm break-words">
               {isEditMode 
                 ? "İlan bilgilerini güncellemek istediğinize emin misiniz?" 
                 : "İlanı yayınlamak istediğinize emin misiniz?"}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="sm:justify-end gap-2 mt-4">
+          <DialogFooter className="flex gap-2 pt-3 mt-2">
             <Button
               type="button"
               variant="outline"
               onClick={closeConfirmDialog}
+              className="flex-1 border border-gray-300 hover:bg-gray-100 text-gray-700"
             >
               İptal
             </Button>
             <Button
               type="button"
-              className="bg-[#FFB000] hover:bg-[#FFB000]/80 text-black font-medium"
+              className="flex-1 bg-[#FFB000] hover:bg-[#FFB000]/80 text-black font-medium"
               onClick={handleSubmit}
               disabled={isSubmitting}
             >
@@ -1707,18 +1709,19 @@ export default function AddListing() {
 
       {/* Cancel Confirmation Dialog */}
       <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>İşlemi İptal Et</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="max-w-[90vw] w-[400px] bg-white rounded-lg border-0 shadow-lg p-4">
+          <DialogHeader className="border-b pb-3">
+            <DialogTitle className="text-lg font-bold text-black">İşlemi İptal Et</DialogTitle>
+            <DialogDescription className="text-gray-600 text-sm break-words">
               İlan {isEditMode ? 'düzenleme' : 'ekleme'} işlemini iptal etmek istediğinize emin misiniz? Girdiğiniz tüm bilgiler kaybolacaktır.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="sm:justify-end gap-2 mt-4">
+          <DialogFooter className="flex gap-2 pt-3 mt-2">
             <Button
               type="button"
               variant="outline"
               onClick={closeCancelDialog}
+              className="flex-1 border border-gray-300 hover:bg-gray-100 text-gray-700"
             >
               Vazgeç
             </Button>
@@ -1726,6 +1729,7 @@ export default function AddListing() {
               type="button"
               variant="destructive"
               onClick={confirmCancel}
+              className="flex-1 bg-red-500 hover:bg-red-600 text-white font-medium"
             >
               İptal Et
             </Button>

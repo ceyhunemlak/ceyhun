@@ -536,21 +536,7 @@ function VasitaListingsContent() {
                 </p>
               </div>
               
-              {/* Category Switch Buttons */}
-              <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
-                <Link href="/ilanlar/konut" className="px-4 py-2 rounded-lg text-sm font-medium transition-all bg-white/10 text-white hover:bg-white/20">
-                  Konut
-                </Link>
-                <Link href="/ilanlar/ticari" className="px-4 py-2 rounded-lg text-sm font-medium transition-all bg-white/10 text-white hover:bg-white/20">
-                  Ticari
-                </Link>
-                <Link href="/ilanlar/arsa" className="px-4 py-2 rounded-lg text-sm font-medium transition-all bg-white/10 text-white hover:bg-white/20">
-                  Arsa
-                </Link>
-                <Link href="/ilanlar/vasita" className="px-4 py-2 rounded-lg text-sm font-medium transition-all bg-primary text-white">
-                  Vasıta
-                </Link>
-              </div>
+              {/* Category Switch Buttons - Removed */}
             </div>
           </div>
         </div>

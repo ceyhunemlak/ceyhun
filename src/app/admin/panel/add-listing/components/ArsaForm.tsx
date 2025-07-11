@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Check, AlertCircle } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface ArsaFormProps {
   formData: any;
@@ -22,6 +23,7 @@ export default function ArsaForm({ formData, updateFormData, listingType }: Arsa
     price: formData.price || "",
     sqm: formData.sqm || "",
     kaks: formData.kaks || "",
+    tapuDurumu: formData.tapuDurumu || null,
     isExchangeable: formData.isExchangeable || false,
     isEligibleForCredit: formData.isEligibleForCredit || false,
   });
@@ -64,6 +66,13 @@ export default function ArsaForm({ formData, updateFormData, listingType }: Arsa
         return false;
     }
   };
+
+  const tapuDurumuOptions = [
+    { value: "hisseli_tapu", label: "Hisseli Tapu" },
+    { value: "kat_mulkiyeti", label: "Kat Mülkiyeti" },
+    { value: "kat_irtifaki", label: "Kat İrtifakı" },
+    { value: "mustakil_tapulu", label: "Müstakil Tapulu" },
+  ];
 
   return (
     <motion.div
@@ -157,20 +166,46 @@ export default function ArsaForm({ formData, updateFormData, listingType }: Arsa
         </div>
       </div>
 
-      {/* KAKS */}
-      <div>
-        <Label htmlFor="kaks" className="text-base font-medium flex items-center">
-          KAKS (Emsal)
-        </Label>
-        <Input
-          id="kaks"
-          type="number"
-          step="0.01"
-          value={form.kaks}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange("kaks", e.target.value)}
-          placeholder="KAKS (Emsal) değeri"
-          className="mt-1"
-        />
+      {/* KAKS and Tapu Durumu */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="kaks" className="text-base font-medium flex items-center">
+            KAKS (Emsal)
+          </Label>
+          <Input
+            id="kaks"
+            type="number"
+            step="0.01"
+            value={form.kaks}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange("kaks", e.target.value)}
+            placeholder="KAKS (Emsal) değeri"
+            className="mt-1"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="tapuDurumu" className="text-base font-medium flex items-center">
+            Tapu Durumu
+          </Label>
+          <Select
+            value={form.tapuDurumu || ""}
+            onValueChange={(value) => handleChange("tapuDurumu", value)}
+          >
+            <SelectTrigger
+              id="tapuDurumu"
+              className="mt-1"
+            >
+              <SelectValue placeholder="Tapu Durumu Seçin" />
+            </SelectTrigger>
+            <SelectContent>
+              {tapuDurumuOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Additional Features */}

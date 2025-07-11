@@ -214,6 +214,17 @@ export default function ListingDetailPreview({
         if (formData.sqm) areaDetails.push({ label: 'Alan', value: `${formData.sqm} m²` });
         if (formData.kaks) areaDetails.push({ label: 'KAKS/Emsal', value: formData.kaks });
         
+        // Tapu Durumu
+        if (formData.tapuDurumu) {
+          const tapuDurumuMap: Record<string, string> = {
+            'hisseli_tapu': 'Hisseli Tapu',
+            'kat_mulkiyeti': 'Kat Mülkiyeti',
+            'kat_irtifaki': 'Kat İrtifakı',
+            'mustakil_tapulu': 'Müstakil Tapulu'
+          };
+          areaDetails.push({ label: 'Tapu Durumu', value: tapuDurumuMap[formData.tapuDurumu] || formData.tapuDurumu });
+        }
+        
         // Financial details
         if (formData.isExchangeable || formData.allowsTrade) financialDetails.push({ label: 'Takas', value: 'Evet' });
         if (formData.isSuitableForCredit || formData.isEligibleForCredit) financialDetails.push({ label: 'Krediye Uygun', value: 'Evet' });

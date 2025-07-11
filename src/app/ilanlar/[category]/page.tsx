@@ -792,9 +792,11 @@ function CategoryListingsContent() {
                 <Link href={getCategoryLink('arsa')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${category === 'arsa' ? 'bg-primary text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}>
                   Arsa
                 </Link>
-                <Link href={getCategoryLink('vasita')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${category === 'vasita' ? 'bg-primary text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}>
-                  Vasıta
-                </Link>
+                {category === 'vasita' && (
+                  <Link href={getCategoryLink('vasita')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${category === 'vasita' ? 'bg-primary text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}>
+                    Vasıta
+                  </Link>
+                )}
               </div>
             </div>
           </div>

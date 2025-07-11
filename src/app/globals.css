@@ -121,9 +121,13 @@
   
   /* Force scrollbars in admin section */
   body[class*="admin"] {
-    overflow-y: scroll !important;
+    overflow-y: auto !important;
     scrollbar-width: thin !important;
     -ms-overflow-style: scrollbar !important;
+    overflow-x: hidden !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    position: relative !important;
   }
   
   body[class*="admin"]::-webkit-scrollbar {
@@ -147,8 +151,11 @@
   
   /* Direct admin path styling */
   html:has(body:has([data-path^="/admin"])) {
-    overflow-y: scroll !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
     scrollbar-width: thin !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
 
   html:has(body:has([data-path^="/admin"]))::-webkit-scrollbar {
