@@ -5,6 +5,7 @@ import Script from "next/script";
 import "swiper/css";
 import "swiper/css/autoplay";
 import FloatingContact from "@/components/FloatingContact";
+import { Analytics } from "@vercel/analytics/react";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -66,6 +67,7 @@ export default function RootLayout({
       <body className="antialiased mobile-scroll-fix">
         {children}
         <FloatingContact defaultPhone="5323850420" />
+        <Analytics />
         
         {/* Script to load stylesheets asynchronously */}
         <Script id="load-stylesheets" strategy="afterInteractive">
