@@ -1,6 +1,6 @@
 import { Metadata, ResolvingMetadata } from 'next/types';
 import { supabase } from '@/lib/supabase';
-import { createSlug } from '@/lib/utils';
+import { createSlug, createSocialImageUrl } from '@/lib/utils';
 
 // Define the base URL for the site
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'ceyhun-emlak.com';
@@ -89,8 +89,14 @@ export async function generateMetadata(
     // Create a description that includes property details
     const description = `${listingStatus} ${propertyType} ${locationText ? `- ${locationText}` : ''} - ${formattedPrice}${listing.description ? ` - ${listing.description.substring(0, 100)}...` : ''}`;
     
-    // Make sure image URL is absolute
-    const absoluteImageUrl = imageUrl.startsWith('http') ? imageUrl : `https://${siteUrl}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
+    // Make sure image URL is absolute and optimized for social sharing
+    const absoluteImageUrl = createSocialImageUrl(imageUrl, {
+      siteUrl,
+      optimize: true,
+      fallbackUrl: `https://${siteUrl}/images/logo_black.png`
+    });
+    
+    console.log('Generated OG image URL:', absoluteImageUrl);
     
     // Generate canonical URL for the listing
     const listingSlug = createSlug(listing.title);
