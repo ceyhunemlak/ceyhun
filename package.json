@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "setup-env": "node setup-env.js"
+    "setup-env": "node setup-env.js",
+    "test:og": "node scripts/test-og.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",
@@ -53,6 +54,8 @@
     "autoprefixer": "^10.4.21",
     "eslint": "^9",
     "eslint-config-next": "15.3.4",
+    "jsdom": "^24.0.0",
+    "node-fetch": "^3.3.2",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
     "typescript": "^5"
