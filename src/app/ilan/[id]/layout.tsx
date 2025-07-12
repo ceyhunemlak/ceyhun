@@ -1,6 +1,6 @@
 import { Metadata, ResolvingMetadata } from 'next/types';
 import { supabase } from '@/lib/supabase';
-import { createSlug, createSocialImageUrl } from '@/lib/utils';
+import { createSlug, createSocialImageUrl, createWhatsAppImageUrl } from '@/lib/utils';
 
 // Define the base URL for the site
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'ceyhun-emlak.com';
@@ -89,19 +89,19 @@ export async function generateMetadata(
     // Create a description that includes property details
     const description = `${listingStatus} ${propertyType} ${locationText ? `- ${locationText}` : ''} - ${formattedPrice}${listing.description ? ` - ${listing.description.substring(0, 100)}...` : ''}`;
     
-    // Make sure image URL is absolute and optimized for social sharing
-    const absoluteImageUrl = createSocialImageUrl(imageUrl, {
+    // WhatsApp için en optimize boyutta görsel URL'si oluştur
+    const whatsappImageUrl = createWhatsAppImageUrl(imageUrl, {
       siteUrl,
-      optimize: true,
-      fallbackUrl: `https://${siteUrl}/images/logo_black.png`
+      fallbackUrl: `https://${siteUrl}/images/ce.png`
     });
     
-    console.log('Generated OG image URL:', absoluteImageUrl);
+    console.log('Generated WhatsApp image URL:', whatsappImageUrl);
     
     // Generate canonical URL for the listing
     const listingSlug = createSlug(listing.title);
     const canonicalUrl = `https://${siteUrl}/ilan/${listingSlug}`;
     
+    // Kesin WhatsApp uyumlu görsel boyutları ve formatı için resmi belgelere göre oluşturulmuş metadata
     return {
       title: listing.title,
       description: description,
@@ -112,9 +112,9 @@ export async function generateMetadata(
         siteName: 'Ceyhun Emlak',
         images: [
           {
-            url: absoluteImageUrl,
-            width: 1200,
-            height: 630,
+            url: whatsappImageUrl,
+            width: 300,
+            height: 300,
             alt: listing.title,
           }
         ],
@@ -125,7 +125,7 @@ export async function generateMetadata(
         card: 'summary_large_image',
         title: listing.title,
         description: description,
-        images: [absoluteImageUrl],
+        images: [whatsappImageUrl],
       },
       alternates: {
         canonical: canonicalUrl,

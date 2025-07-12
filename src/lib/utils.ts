@@ -101,3 +101,60 @@ export function createSocialImageUrl(imageUrl: string | null | undefined, option
   
   return absoluteUrl;
 }
+
+/**
+ * WhatsApp için özel olarak optimize edilmiş görsel URL'si oluşturur
+ * WhatsApp platformunun katı gereksinimlerine göre görsel URL'sini düzenler
+ * 
+ * WhatsApp Gereksinimleri:
+ * - Görsel en az 200x200px olmalı
+ * - Görsel boyutu 300KB'tan küçük olmalı
+ * - Görsel formatı: JPG, PNG veya WEBP olmalı
+ * - En iyi görüntüleme için 1:1 (kare) veya 1.91:1 (Facebook standartı) oranı önerilir
+ * - Ayrıca 16:9 oranı da kabul edilir
+ */
+export function createWhatsAppImageUrl(imageUrl: string | null | undefined, options?: {
+  fallbackUrl?: string;
+  siteUrl?: string;
+}): string {
+  const siteUrl = options?.siteUrl || process.env.NEXT_PUBLIC_SITE_URL || 'ceyhun-emlak.com';
+  
+  // Fallback görseli
+  if (!imageUrl) {
+    return options?.fallbackUrl || `https://${siteUrl}/images/ce.png`;
+  }
+  
+  let absoluteUrl = '';
+  
+  // Mutlak URL oluştur
+  if (imageUrl.startsWith('http')) {
+    absoluteUrl = imageUrl;
+  } else if (imageUrl.startsWith('/')) {
+    absoluteUrl = `https://${siteUrl}${imageUrl}`;
+  } else {
+    absoluteUrl = `https://${siteUrl}/${imageUrl}`;
+  }
+  
+  // HTTPS kullan
+  if (absoluteUrl.startsWith('http:')) {
+    absoluteUrl = absoluteUrl.replace('http:', 'https:');
+  }
+  
+  // Cloudinary URL'si ise, WhatsApp için optimize et
+  if (absoluteUrl.includes('res.cloudinary.com')) {
+    const urlParts = absoluteUrl.split('/upload/');
+    
+    if (urlParts.length === 2) {
+      // WhatsApp için özel optimizasyon parametreleri:
+      // w_300 - genişlik: 300px (WhatsApp'ın minimum gereksinimidir)
+      // h_300 - yükseklik: 300px (kare oran için)
+      // c_fill - resmi kare oranında kırp (en iyi sonuç için)
+      // q_auto:good - iyi kalitede otomatik sıkıştırma
+      // f_auto - otomatik format seçimi
+      const whatsAppParams = 'w_300,h_300,c_fill,q_auto:good,f_auto/';
+      absoluteUrl = `${urlParts[0]}/upload/${whatsAppParams}${urlParts[1]}`;
+    }
+  }
+  
+  return absoluteUrl;
+}
