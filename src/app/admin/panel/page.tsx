@@ -213,6 +213,11 @@ export default function AdminPanel() {
     fetchListings();
   }, []);
 
+  // Reset to page 1 only when filter or sort settings change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, selectedSubCategory, selectedListingStatus, searchQuery, sortConfig, showFeaturedOnly, activeStatusFilter]);
+  
   // Apply filters when category, search, or sort changes
   useEffect(() => {
     if (selectedCategory === 'emlak') {
@@ -231,10 +236,29 @@ export default function AdminPanel() {
       // All listings
       applyFiltersAndSort(listings);
     }
-    // Reset to first page when filters change
-    setCurrentPage(1);
-  }, [selectedCategory, listings, selectedSubCategory, selectedListingStatus, searchQuery, sortConfig, showFeaturedOnly, activeStatusFilter]);
+    // Reset to first page ONLY when filter or sort settings change, not when just the listings content changes
+  }, [selectedCategory, selectedSubCategory, selectedListingStatus, searchQuery, sortConfig, showFeaturedOnly, activeStatusFilter]);
   
+  // Apply listings changes separately without affecting pagination
+  useEffect(() => {
+    if (selectedCategory === 'emlak') {
+      const emlakListings = listings.filter(listing => 
+        ['konut', 'ticari', 'arsa'].includes(listing.property_type.toLowerCase())
+      );
+      
+      applyFiltersAndSort(emlakListings);
+    } else if (selectedCategory === 'vasita') {
+      const vasitaListings = listings.filter(listing => 
+        listing.property_type.toLowerCase() === 'vasita'
+      );
+      
+      applyFiltersAndSort(vasitaListings);
+    } else {
+      // All listings
+      applyFiltersAndSort(listings);
+    }
+  }, [listings, selectedCategory]);
+
   // Apply pagination when filtered listings or pagination settings change
   useEffect(() => {
     const totalPages = Math.ceil(filteredListings.length / itemsPerPage);
@@ -497,9 +521,10 @@ export default function AdminPanel() {
       }
       
       // Update the listing in state
-      setListings(listings.map(listing => 
+      const updatedListings = listings.map(listing => 
         listing.id === id ? { ...listing, is_active: !currentStatus } : listing
-      ));
+      );
+      setListings(updatedListings);
       
       // Update active listings count in stats
       setStats(prev => ({
@@ -539,9 +564,10 @@ export default function AdminPanel() {
       }
       
       // Update the listing in state
-      setListings(listings.map(listing => 
+      const updatedListings = listings.map(listing => 
         listing.id === id ? { ...listing, is_featured: !currentStatus } : listing
-      ));
+      );
+      setListings(updatedListings);
       
       // Show success toast
       showToast(
@@ -849,9 +875,10 @@ export default function AdminPanel() {
       }
       
       // Update the listing in state
-      setListings(listings.map(listing => 
+      const updatedListings = listings.map(listing => 
         listing.id === selectedListingForPrice.id ? { ...listing, price: values.price } : listing
-      ));
+      );
+      setListings(updatedListings);
       
       // Close dialog
       setIsPriceDialogOpen(false);
@@ -901,9 +928,10 @@ export default function AdminPanel() {
       }
       
       // Update the listing in state
-      setListings(listings.map(listing => 
+      const updatedListings = listings.map(listing => 
         listing.id === selectedListingForTitle.id ? { ...listing, title: values.title } : listing
-      ));
+      );
+      setListings(updatedListings);
       
       // Close dialog
       setIsTitleDialogOpen(false);

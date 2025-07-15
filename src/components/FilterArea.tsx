@@ -23,6 +23,13 @@ interface DistrictData {
   koy: Neighborhood[];
 }
 
+// Define the locations data structure
+interface LocationsData {
+  [province: string]: {
+    [district: string]: string[];
+  };
+}
+
 const FilterArea = () => {
   const router = useRouter();
   const [konutType, setKonutType] = useState("all");
@@ -32,9 +39,89 @@ const FilterArea = () => {
   const [maxArea, setMaxArea] = useState("");
   const [roomCount, setRoomCount] = useState("all");
   const [saleStatus, setSaleStatus] = useState("sale");
+  
+  // Location states
+  const [selectedProvince, setSelectedProvince] = useState("tokat");
   const [selectedDistrict, setSelectedDistrict] = useState("");
   const [selectedNeighborhood, setSelectedNeighborhood] = useState("");
+  const [provinces, setProvinces] = useState<string[]>(['tokat']);
+  const [districts, setDistricts] = useState<string[]>([]);
+  const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
+  
+  // State to store all locations data
+  const [locationsData, setLocationsData] = useState<LocationsData | null>(null);
+  
   const [activeTab, setActiveTab] = useState("konut");
+  
+  // Fetch all locations data on component mount
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const response = await fetch('/api/locations/all');
+        if (!response.ok) throw new Error('Failed to fetch locations');
+        
+        const data = await response.json();
+        setLocationsData(data);
+        
+        // Get all provinces
+        const allProvinces = Object.keys(data).map(p => p.charAt(0).toUpperCase() + p.slice(1));
+        setProvinces(['Tokat', ...allProvinces.filter(p => p.toLowerCase() !== 'tokat')]);
+      } catch (error) {
+        console.error('Error fetching locations:', error);
+      }
+    };
+    
+    fetchLocations();
+  }, []);
+
+  // Update districts when province changes
+  useEffect(() => {
+    if (!locationsData || !selectedProvince) return;
+    
+    const province = selectedProvince.toLowerCase();
+    
+    if (province === 'tokat') {
+      // For Tokat, use the static data
+      const tokatDistricts = Object.keys(neighborhoodsByDistrict).map(
+        d => d.charAt(0).toUpperCase() + d.slice(1)
+      );
+      setDistricts(tokatDistricts);
+    } else if (locationsData[province]) {
+      // For other provinces, use the dynamic data
+      const provinceDistricts = Object.keys(locationsData[province]).map(
+        d => d.charAt(0).toUpperCase() + d.slice(1)
+      );
+      setDistricts(provinceDistricts);
+    } else {
+      setDistricts([]);
+    }
+    
+    // Reset district and neighborhood when province changes
+    setSelectedDistrict("");
+    setSelectedNeighborhood("");
+  }, [selectedProvince, locationsData]);
+
+  // Update neighborhoods when district changes
+  useEffect(() => {
+    if (!selectedProvince || !selectedDistrict) {
+      setNeighborhoods([]);
+      return;
+    }
+    
+    const province = selectedProvince.toLowerCase();
+    const district = selectedDistrict.toLowerCase();
+    
+    if (province === 'tokat') {
+      // For Tokat, use the static data and retain the mahalle/köy separation
+      setNeighborhoods([]);
+      // Neighborhoods are rendered directly in the component from neighborhoodsByDistrict
+    } else if (locationsData && locationsData[province] && locationsData[province][district]) {
+      // For other provinces, use the dynamic data
+      setNeighborhoods(locationsData[province][district]);
+    } else {
+      setNeighborhoods([]);
+    }
+  }, [selectedProvince, selectedDistrict, locationsData]);
   
   // Format price with dot separators (123.123)
   const formatPrice = (value: string): string => {
@@ -149,13 +236,18 @@ const FilterArea = () => {
     return price.replace(/\./g, '');
   };
   
-  // Function to get neighborhoods for selected district
+  // Function to get neighborhoods for selected district (for Tokat)
   const getNeighborhoods = (district: string): DistrictData => {
     if (!district) return { mahalle: [], koy: [] };
     
     // Type assertion to make TypeScript happy
     const districtData = (neighborhoodsByDistrict as Record<string, DistrictData>)[district.toLowerCase()];
     return districtData || { mahalle: [], koy: [] };
+  };
+  
+  // Handle province change
+  const handleProvinceChange = (value: string) => {
+    setSelectedProvince(value);
   };
   
   // Handle district change
@@ -193,6 +285,7 @@ const FilterArea = () => {
     }
   }, []);
   
+  // Format label to capitalize first letter of each word
   const formatLabel = (label: string) => {
     return label
       .toLowerCase()
@@ -352,31 +445,32 @@ const FilterArea = () => {
               <div className="relative">
                 <Label className="font-headings mb-1 sm:mb-2 md:mb-3 block text-xs sm:text-sm md:text-base font-medium">İl/İlçe/Mahalle-Köy</Label>
                 <div className="grid grid-cols-3 gap-1 sm:gap-1 md:gap-2">
-                  <Select defaultValue="tokat">
+                  <Select value={selectedProvince} onValueChange={handleProvinceChange}>
                     <SelectTrigger className="w-full py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm md:text-base">
-                      <SelectValue />
+                      <SelectValue placeholder="İl" />
                     </SelectTrigger>
-                    <SelectContent sideOffset={4} className="rounded-xl border border-gray-200">
-                      <SelectItem value="tokat">Tokat</SelectItem>
+                    <SelectContent sideOffset={4} className="rounded-xl border border-gray-200 max-h-[200px] overflow-y-auto">
+                      {provinces.map((province) => (
+                        <SelectItem key={province.toLowerCase()} value={province.toLowerCase()}>
+                          {province}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
-                  <Select value={selectedDistrict} onValueChange={handleDistrictChange}>
+                  <Select 
+                    value={selectedDistrict} 
+                    onValueChange={handleDistrictChange}
+                    disabled={!selectedProvince}
+                  >
                     <SelectTrigger className="w-full py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm md:text-base">
                       <SelectValue placeholder="İlçe" />
                     </SelectTrigger>
-                    <SelectContent sideOffset={4} className="rounded-xl border border-gray-200">
-                      <SelectItem value="merkez">Merkez</SelectItem>
-                      <SelectItem value="almus">Almus</SelectItem>
-                      <SelectItem value="artova">Artova</SelectItem>
-                      <SelectItem value="basciftlik">Başçiftlik</SelectItem>
-                      <SelectItem value="erbaa">Erbaa</SelectItem>
-                      <SelectItem value="niksar">Niksar</SelectItem>
-                      <SelectItem value="pazar">Pazar</SelectItem>
-                      <SelectItem value="resadiye">Reşadiye</SelectItem>
-                      <SelectItem value="sulusaray">Sulusaray</SelectItem>
-                      <SelectItem value="turhal">Turhal</SelectItem>
-                      <SelectItem value="yesilyurt">Yeşilyurt</SelectItem>
-                      <SelectItem value="zile">Zile</SelectItem>
+                    <SelectContent sideOffset={4} className="rounded-xl border border-gray-200 max-h-[200px] overflow-y-auto">
+                      {districts.map((district) => (
+                        <SelectItem key={district.toLowerCase()} value={district.toLowerCase()}>
+                          {district}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <Select 
@@ -388,7 +482,8 @@ const FilterArea = () => {
                       <SelectValue placeholder={selectedDistrict ? "Mahalle/Köy" : "İlçe Seçin"} />
                     </SelectTrigger>
                     <SelectContent sideOffset={4} className="rounded-xl border border-gray-200 max-h-[200px] sm:max-h-[250px] md:max-h-[300px]">
-                      {selectedDistrict && (
+                      {selectedProvince === 'tokat' && selectedDistrict ? (
+                        // For Tokat, use the static data with mahalle/köy separation
                         <>
                           {getNeighborhoods(selectedDistrict).mahalle && getNeighborhoods(selectedDistrict).mahalle.length > 0 && (
                             <>
@@ -412,6 +507,13 @@ const FilterArea = () => {
                             </>
                           )}
                         </>
+                      ) : (
+                        // For other provinces, use the dynamic data
+                        neighborhoods.map((neighborhood) => (
+                          <SelectItem key={neighborhood} value={neighborhood}>
+                            {formatLabel(neighborhood)}
+                          </SelectItem>
+                        ))
                       )}
                     </SelectContent>
                   </Select>
@@ -434,6 +536,7 @@ const FilterArea = () => {
                 if (roomCount && roomCount !== 'all') params.append('roomCount', roomCount);
                 if (konutType && konutType !== 'all') params.append('konutType', konutType);
                 if (saleStatus) params.append('listingStatus', saleStatus === 'sale' ? 'satilik' : 'kiralik');
+                if (selectedProvince) params.append('province', selectedProvince);
                 if (selectedDistrict) params.append('district', selectedDistrict);
                 if (selectedNeighborhood) params.append('neighborhood', selectedNeighborhood);
                 

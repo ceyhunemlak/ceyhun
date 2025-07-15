@@ -74,6 +74,21 @@ export default function KonutForm({ formData, updateFormData, listingType, prope
   const isFieldInvalid = (field: string): boolean => {
     if (!touched[field]) return false;
     
+    // For prefabrik, only validate title, description and price
+    if (propertyType === "prefabrik") {
+      switch (field) {
+        case "title":
+          return !form.title;
+        case "description":
+          return !form.description;
+        case "price":
+          return !form.price;
+        default:
+          return false;
+      }
+    }
+    
+    // For other property types, validate all required fields
     switch (field) {
       case "title":
         return !form.title;
@@ -207,8 +222,8 @@ export default function KonutForm({ formData, updateFormData, listingType, prope
         </div>
       </div>
 
-      {/* Price and Area */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Price */}
+      <div className={propertyType === "prefabrik" ? "grid grid-cols-1 gap-4" : "grid grid-cols-1 md:grid-cols-3 gap-4"}>
         <div>
           <Label htmlFor="price" className="text-base font-medium flex items-center">
             Fiyat (₺) <span className="text-red-500 ml-1">*</span>
@@ -233,308 +248,317 @@ export default function KonutForm({ formData, updateFormData, listingType, prope
           )}
         </div>
 
-        <div>
-          <Label htmlFor="grossArea" className="text-base font-medium flex items-center">
-            m² (Brüt) <span className="text-red-500 ml-1">*</span>
-          </Label>
-          <Input
-            id="grossArea"
-            type="number"
-            value={form.grossArea}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange("grossArea", e.target.value)}
-            onBlur={() => handleBlur("grossArea")}
-            placeholder="Brüt Alan"
-            className={`mt-1 ${isFieldInvalid("grossArea") ? "border-red-500 focus-visible:ring-red-500" : ""}`}
-            required
-          />
-          {isFieldInvalid("grossArea") && (
-            <p className="text-red-500 text-sm mt-1">Brüt alan zorunludur</p>
-          )}
-        </div>
+        {propertyType !== "prefabrik" && (
+          <>
+            <div>
+              <Label htmlFor="grossArea" className="text-base font-medium flex items-center">
+                m² (Brüt) <span className="text-red-500 ml-1">*</span>
+              </Label>
+              <Input
+                id="grossArea"
+                type="number"
+                value={form.grossArea}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange("grossArea", e.target.value)}
+                onBlur={() => handleBlur("grossArea")}
+                placeholder="Brüt Alan"
+                className={`mt-1 ${isFieldInvalid("grossArea") ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                required
+              />
+              {isFieldInvalid("grossArea") && (
+                <p className="text-red-500 text-sm mt-1">Brüt alan zorunludur</p>
+              )}
+            </div>
 
-        <div>
-          <Label htmlFor="netArea" className="text-base font-medium flex items-center">
-            m² (Net) <span className="text-red-500 ml-1">*</span>
-          </Label>
-          <Input
-            id="netArea"
-            type="number"
-            value={form.netArea}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange("netArea", e.target.value)}
-            onBlur={() => handleBlur("netArea")}
-            placeholder="Net Alan"
-            className={`mt-1 ${isFieldInvalid("netArea") ? "border-red-500 focus-visible:ring-red-500" : ""}`}
-            required
-          />
-          {isFieldInvalid("netArea") && (
-            <p className="text-red-500 text-sm mt-1">Net alan zorunludur</p>
-          )}
-        </div>
+            <div>
+              <Label htmlFor="netArea" className="text-base font-medium flex items-center">
+                m² (Net) <span className="text-red-500 ml-1">*</span>
+              </Label>
+              <Input
+                id="netArea"
+                type="number"
+                value={form.netArea}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange("netArea", e.target.value)}
+                onBlur={() => handleBlur("netArea")}
+                placeholder="Net Alan"
+                className={`mt-1 ${isFieldInvalid("netArea") ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                required
+              />
+              {isFieldInvalid("netArea") && (
+                <p className="text-red-500 text-sm mt-1">Net alan zorunludur</p>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Room Count, Building Age, Floor */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {propertyType !== "bina" && (
-          <div>
-            <Label htmlFor="roomCount" className="text-base font-medium flex items-center">
-              Oda Sayısı <span className="text-red-500 ml-1">*</span>
-            </Label>
-            <Select
-              value={form.roomCount}
-              onValueChange={(value) => handleChange("roomCount", value)}
-              onOpenChange={() => !form.roomCount && handleBlur("roomCount")}
-            >
-              <SelectTrigger 
-                id="roomCount" 
-                className={`mt-1 ${isFieldInvalid("roomCount") ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+      {/* Only show these fields if not prefabrik */}
+      {propertyType !== "prefabrik" && (
+        <>
+          {/* Room Count, Building Age, Floor */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {propertyType !== "bina" && (
+              <div>
+                <Label htmlFor="roomCount" className="text-base font-medium flex items-center">
+                  Oda Sayısı <span className="text-red-500 ml-1">*</span>
+                </Label>
+                <Select
+                  value={form.roomCount}
+                  onValueChange={(value) => handleChange("roomCount", value)}
+                  onOpenChange={() => !form.roomCount && handleBlur("roomCount")}
+                >
+                  <SelectTrigger 
+                    id="roomCount" 
+                    className={`mt-1 ${isFieldInvalid("roomCount") ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                  >
+                    <SelectValue placeholder="Oda sayısı seçin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roomOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {isFieldInvalid("roomCount") && (
+                  <p className="text-red-500 text-sm mt-1">Oda sayısı zorunludur</p>
+                )}
+              </div>
+            )}
+
+            {propertyType === "bina" && (
+              <div>
+                <Label htmlFor="apartmentsPerFloor" className="text-base font-medium flex items-center">
+                  Bir Kattaki Daire Sayısı <span className="text-red-500 ml-1">*</span>
+                </Label>
+                <Input
+                  id="apartmentsPerFloor"
+                  type="number"
+                  value={form.apartmentsPerFloor}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange("apartmentsPerFloor", e.target.value)}
+                  onBlur={() => handleBlur("apartmentsPerFloor")}
+                  placeholder="Bir kattaki daire sayısı"
+                  className={`mt-1 ${isFieldInvalid("apartmentsPerFloor") ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                  required
+                />
+                {isFieldInvalid("apartmentsPerFloor") && (
+                  <p className="text-red-500 text-sm mt-1">Bir kattaki daire sayısı zorunludur</p>
+                )}
+              </div>
+            )}
+
+            <div>
+              <Label htmlFor="buildingAge" className="text-base font-medium flex items-center">
+                Bina Yaşı <span className="text-red-500 ml-1">*</span>
+              </Label>
+              <Select
+                value={form.buildingAge}
+                onValueChange={(value) => handleChange("buildingAge", value)}
+                onOpenChange={() => !form.buildingAge && handleBlur("buildingAge")}
               >
-                <SelectValue placeholder="Oda sayısı seçin" />
-              </SelectTrigger>
-              <SelectContent>
-                {roomOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {isFieldInvalid("roomCount") && (
-              <p className="text-red-500 text-sm mt-1">Oda sayısı zorunludur</p>
+                <SelectTrigger 
+                  id="buildingAge" 
+                  className={`mt-1 ${isFieldInvalid("buildingAge") ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                >
+                  <SelectValue placeholder="Bina yaşı seçin" />
+                </SelectTrigger>
+                <SelectContent>
+                  {buildingAgeOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {isFieldInvalid("buildingAge") && (
+                <p className="text-red-500 text-sm mt-1">Bina yaşı zorunludur</p>
+              )}
+            </div>
+
+            {propertyType !== "villa" && propertyType !== "mustakil_ev" && propertyType !== "bina" && (
+              <div>
+                <Label htmlFor="floor" className="text-base font-medium flex items-center">
+                  Bulunduğu Kat <span className="text-red-500 ml-1">*</span>
+                </Label>
+                <Select
+                  value={form.floor}
+                  onValueChange={(value) => handleChange("floor", value)}
+                  onOpenChange={() => !form.floor && handleBlur("floor")}
+                >
+                  <SelectTrigger 
+                    id="floor" 
+                    className={`mt-1 ${isFieldInvalid("floor") ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                  >
+                    <SelectValue placeholder="Kat seçin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {floorOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {isFieldInvalid("floor") && (
+                  <p className="text-red-500 text-sm mt-1">Bulunduğu kat zorunludur</p>
+                )}
+              </div>
             )}
           </div>
-        )}
 
-        {propertyType === "bina" && (
-          <div>
-            <Label htmlFor="apartmentsPerFloor" className="text-base font-medium flex items-center">
-              Bir Kattaki Daire Sayısı <span className="text-red-500 ml-1">*</span>
-            </Label>
-            <Input
-              id="apartmentsPerFloor"
-              type="number"
-              value={form.apartmentsPerFloor}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange("apartmentsPerFloor", e.target.value)}
-              onBlur={() => handleBlur("apartmentsPerFloor")}
-              placeholder="Bir kattaki daire sayısı"
-              className={`mt-1 ${isFieldInvalid("apartmentsPerFloor") ? "border-red-500 focus-visible:ring-red-500" : ""}`}
-              required
-            />
-            {isFieldInvalid("apartmentsPerFloor") && (
-              <p className="text-red-500 text-sm mt-1">Bir kattaki daire sayısı zorunludur</p>
-            )}
-          </div>
-        )}
-
-        <div>
-          <Label htmlFor="buildingAge" className="text-base font-medium flex items-center">
-            Bina Yaşı <span className="text-red-500 ml-1">*</span>
-          </Label>
-          <Select
-            value={form.buildingAge}
-            onValueChange={(value) => handleChange("buildingAge", value)}
-            onOpenChange={() => !form.buildingAge && handleBlur("buildingAge")}
-          >
-            <SelectTrigger 
-              id="buildingAge" 
-              className={`mt-1 ${isFieldInvalid("buildingAge") ? "border-red-500 focus-visible:ring-red-500" : ""}`}
-            >
-              <SelectValue placeholder="Bina yaşı seçin" />
-            </SelectTrigger>
-            <SelectContent>
-              {buildingAgeOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {isFieldInvalid("buildingAge") && (
-            <p className="text-red-500 text-sm mt-1">Bina yaşı zorunludur</p>
-          )}
-        </div>
-
-        {propertyType !== "villa" && propertyType !== "mustakil_ev" && propertyType !== "bina" && (
-          <div>
-            <Label htmlFor="floor" className="text-base font-medium flex items-center">
-              Bulunduğu Kat <span className="text-red-500 ml-1">*</span>
-            </Label>
-            <Select
-              value={form.floor}
-              onValueChange={(value) => handleChange("floor", value)}
-              onOpenChange={() => !form.floor && handleBlur("floor")}
-            >
-              <SelectTrigger 
-                id="floor" 
-                className={`mt-1 ${isFieldInvalid("floor") ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+          {/* Total Floors and Heating */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="totalFloors" className="text-base font-medium flex items-center">
+                Kat Sayısı <span className="text-red-500 ml-1">*</span>
+              </Label>
+              <Select
+                value={form.totalFloors}
+                onValueChange={(value) => handleChange("totalFloors", value)}
+                onOpenChange={() => !form.totalFloors && handleBlur("totalFloors")}
               >
-                <SelectValue placeholder="Kat seçin" />
-              </SelectTrigger>
-              <SelectContent>
-                {floorOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {isFieldInvalid("floor") && (
-              <p className="text-red-500 text-sm mt-1">Bulunduğu kat zorunludur</p>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Total Floors and Heating */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="totalFloors" className="text-base font-medium flex items-center">
-            Kat Sayısı <span className="text-red-500 ml-1">*</span>
-          </Label>
-          <Select
-            value={form.totalFloors}
-            onValueChange={(value) => handleChange("totalFloors", value)}
-            onOpenChange={() => !form.totalFloors && handleBlur("totalFloors")}
-          >
-            <SelectTrigger 
-              id="totalFloors" 
-              className={`mt-1 ${isFieldInvalid("totalFloors") ? "border-red-500 focus-visible:ring-red-500" : ""}`}
-            >
-              <SelectValue placeholder="Kat sayısı seçin" />
-            </SelectTrigger>
-            <SelectContent>
-              {totalFloorsOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {isFieldInvalid("totalFloors") && (
-            <p className="text-red-500 text-sm mt-1">Kat sayısı zorunludur</p>
-          )}
-        </div>
-
-        <div>
-          <Label htmlFor="heating" className="text-base font-medium">
-            Isıtma
-          </Label>
-          <Select
-            value={form.heating}
-            onValueChange={(value) => handleChange("heating", value)}
-          >
-            <SelectTrigger id="heating" className="mt-1">
-              <SelectValue placeholder="Isıtma tipi seçin" />
-            </SelectTrigger>
-            <SelectContent>
-              {heatingOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Additional Features */}
-      <div className="space-y-4">
-        <h3 className="text-base font-medium">Ek Özellikler</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
-               onClick={() => handleChange("hasBalcony", !form.hasBalcony)}>
-            <div className="flex items-center justify-center">
-              <div className={`w-5 h-5 rounded border flex items-center justify-center ${form.hasBalcony ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
-                {form.hasBalcony && <Check className="h-3 w-3 text-white stroke-[3]" />}
-              </div>
+                <SelectTrigger 
+                  id="totalFloors" 
+                  className={`mt-1 ${isFieldInvalid("totalFloors") ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                >
+                  <SelectValue placeholder="Kat sayısı seçin" />
+                </SelectTrigger>
+                <SelectContent>
+                  {totalFloorsOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {isFieldInvalid("totalFloors") && (
+                <p className="text-red-500 text-sm mt-1">Kat sayısı zorunludur</p>
+              )}
             </div>
-            <Label 
-              htmlFor="hasBalcony" 
-              className="font-medium cursor-pointer flex-1"
-            >
-              Balkonlu
-            </Label>
-          </div>
 
-          <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
-               onClick={() => handleChange("hasElevator", !form.hasElevator)}>
-            <div className="flex items-center justify-center">
-              <div className={`w-5 h-5 rounded border flex items-center justify-center ${form.hasElevator ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
-                {form.hasElevator && <Check className="h-3 w-3 text-white stroke-[3]" />}
-              </div>
+            <div>
+              <Label htmlFor="heating" className="text-base font-medium">
+                Isıtma
+              </Label>
+              <Select
+                value={form.heating}
+                onValueChange={(value) => handleChange("heating", value)}
+              >
+                <SelectTrigger id="heating" className="mt-1">
+                  <SelectValue placeholder="Isıtma tipi seçin" />
+                </SelectTrigger>
+                <SelectContent>
+                  {heatingOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <Label 
-              htmlFor="hasElevator" 
-              className="font-medium cursor-pointer flex-1"
-            >
-              Asansörlü
-            </Label>
           </div>
 
-          <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
-               onClick={() => handleChange("isFurnished", !form.isFurnished)}>
-            <div className="flex items-center justify-center">
-              <div className={`w-5 h-5 rounded border flex items-center justify-center ${form.isFurnished ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
-                {form.isFurnished && <Check className="h-3 w-3 text-white stroke-[3]" />}
-              </div>
-            </div>
-            <Label 
-              htmlFor="isFurnished" 
-              className="font-medium cursor-pointer flex-1"
-            >
-              Eşyalı
-            </Label>
-          </div>
-
-          {listingType !== "kiralik" && (
-            <>
+          {/* Additional Features */}
+          <div className="space-y-4">
+            <h3 className="text-base font-medium">Ek Özellikler</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
-                onClick={() => handleChange("isExchangeable", !form.isExchangeable)}>
+                   onClick={() => handleChange("hasBalcony", !form.hasBalcony)}>
                 <div className="flex items-center justify-center">
-                  <div className={`w-5 h-5 rounded border flex items-center justify-center ${form.isExchangeable ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
-                    {form.isExchangeable && <Check className="h-3 w-3 text-white stroke-[3]" />}
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center ${form.hasBalcony ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
+                    {form.hasBalcony && <Check className="h-3 w-3 text-white stroke-[3]" />}
                   </div>
                 </div>
                 <Label 
-                  htmlFor="isExchangeable" 
+                  htmlFor="hasBalcony" 
                   className="font-medium cursor-pointer flex-1"
                 >
-                  Takas Yapılabilir
+                  Balkonlu
                 </Label>
               </div>
 
               <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
-                onClick={() => handleChange("isSuitableForCredit", !form.isSuitableForCredit)}>
+                   onClick={() => handleChange("hasElevator", !form.hasElevator)}>
                 <div className="flex items-center justify-center">
-                  <div className={`w-5 h-5 rounded border flex items-center justify-center ${form.isSuitableForCredit ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
-                    {form.isSuitableForCredit && <Check className="h-3 w-3 text-white stroke-[3]" />}
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center ${form.hasElevator ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
+                    {form.hasElevator && <Check className="h-3 w-3 text-white stroke-[3]" />}
                   </div>
                 </div>
                 <Label 
-                  htmlFor="isSuitableForCredit" 
+                  htmlFor="hasElevator" 
                   className="font-medium cursor-pointer flex-1"
                 >
-                  Krediye Uygun
+                  Asansörlü
                 </Label>
               </div>
-            </>
-          )}
 
-          <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
-               onClick={() => handleChange("inSite", !form.inSite)}>
-            <div className="flex items-center justify-center">
-              <div className={`w-5 h-5 rounded border flex items-center justify-center ${form.inSite ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
-                {form.inSite && <Check className="h-3 w-3 text-white stroke-[3]" />}
+              <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                   onClick={() => handleChange("isFurnished", !form.isFurnished)}>
+                <div className="flex items-center justify-center">
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center ${form.isFurnished ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
+                    {form.isFurnished && <Check className="h-3 w-3 text-white stroke-[3]" />}
+                  </div>
+                </div>
+                <Label 
+                  htmlFor="isFurnished" 
+                  className="font-medium cursor-pointer flex-1"
+                >
+                  Eşyalı
+                </Label>
+              </div>
+
+              {listingType !== "kiralik" && (
+                <>
+                  <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                    onClick={() => handleChange("isExchangeable", !form.isExchangeable)}>
+                    <div className="flex items-center justify-center">
+                      <div className={`w-5 h-5 rounded border flex items-center justify-center ${form.isExchangeable ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
+                        {form.isExchangeable && <Check className="h-3 w-3 text-white stroke-[3]" />}
+                      </div>
+                    </div>
+                    <Label 
+                      htmlFor="isExchangeable" 
+                      className="font-medium cursor-pointer flex-1"
+                    >
+                      Takas Yapılabilir
+                    </Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                    onClick={() => handleChange("isSuitableForCredit", !form.isSuitableForCredit)}>
+                    <div className="flex items-center justify-center">
+                      <div className={`w-5 h-5 rounded border flex items-center justify-center ${form.isSuitableForCredit ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
+                        {form.isSuitableForCredit && <Check className="h-3 w-3 text-white stroke-[3]" />}
+                      </div>
+                    </div>
+                    <Label 
+                      htmlFor="isSuitableForCredit" 
+                      className="font-medium cursor-pointer flex-1"
+                    >
+                      Krediye Uygun
+                    </Label>
+                  </div>
+                </>
+              )}
+
+              <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                   onClick={() => handleChange("inSite", !form.inSite)}>
+                <div className="flex items-center justify-center">
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center ${form.inSite ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
+                    {form.inSite && <Check className="h-3 w-3 text-white stroke-[3]" />}
+                  </div>
+                </div>
+                <Label 
+                  htmlFor="inSite" 
+                  className="font-medium cursor-pointer flex-1"
+                >
+                  Site İçerisinde
+                </Label>
               </div>
             </div>
-            <Label 
-              htmlFor="inSite" 
-              className="font-medium cursor-pointer flex-1"
-            >
-              Site İçerisinde
-            </Label>
           </div>
-        </div>
-      </div>
+        </>
+      )}
     </motion.div>
   );
 } 

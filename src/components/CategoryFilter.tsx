@@ -6,13 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, ArrowRight } from "lucide-react";
+import { Search, ArrowRight, Check } from "lucide-react";
 import neighborhoodsByDistrict from "@/lib/neighborhoods";
 
 // Define the neighborhood type
 interface Neighborhood {
   value: string;
   label: string;
+}
+
+// Define locations data structure
+interface LocationsData {
+  [province: string]: {
+    [district: string]: string[];
+  };
 }
 
 // Define filter props type
@@ -24,11 +31,13 @@ interface CategoryFilterProps {
     minArea?: string;
     maxArea?: string;
     listingStatus?: string;
+    province?: string;
     district?: string;
     neighborhood?: string;
     roomCount?: string;
     konutType?: string;
     vasitaType?: string;
+    ticariType?: string;
     brand?: string;
     model?: string;
     minYear?: string;
@@ -61,8 +70,16 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
   const [minArea, setMinArea] = useState(initialFilters.minArea || "");
   const [maxArea, setMaxArea] = useState(initialFilters.maxArea || "");
   const [saleStatus, setSaleStatus] = useState(initialFilters.listingStatus ? (initialFilters.listingStatus === "kiralik" ? "rent" : "sale") : "");
+  
+  // Location states
+  const [selectedProvince, setSelectedProvince] = useState(initialFilters.province || "tokat");
   const [selectedDistrict, setSelectedDistrict] = useState(initialFilters.district || "");
   const [selectedNeighborhood, setSelectedNeighborhood] = useState(initialFilters.neighborhood || "");
+  const [provinces, setProvinces] = useState<string[]>(['tokat']);
+  const [districts, setDistricts] = useState<string[]>([]);
+  const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
+  const [locationsData, setLocationsData] = useState<LocationsData | null>(null);
+  
   const [mainCategory, setMainCategory] = useState(initialFilters.mainCategory || "all");
   
   // For dynamic filter display in emlak category
@@ -80,7 +97,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
   
   // Ticari specific filters
   // Reusing roomCount, heatingType, allowsTrade, isEligibleForCredit from konut
-  const [ticariType, setTicariType] = useState(initialFilters.konutType || "all");
+  const [ticariType, setTicariType] = useState(initialFilters.ticariType || "all");
   
   // Arsa specific filters
   const [arsaType, setArsaType] = useState(initialFilters.arsaType || "all");
@@ -101,9 +118,6 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
   const [hasDamageRecord, setHasDamageRecord] = useState(initialFilters.hasDamageRecord || "all");
   // Reusing allowsTrade from konut
   
-  // Available neighborhoods based on selected district
-  const [neighborhoods, setNeighborhoods] = useState<Neighborhood[]>([]);
-  
   // Add debounce timer for input fields
   const [debouncedMinPrice, setDebouncedMinPrice] = useState(initialFilters.minPrice || "");
   const [debouncedMaxPrice, setDebouncedMaxPrice] = useState(initialFilters.maxPrice || "");
@@ -112,115 +126,169 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
   const [debouncedKaks, setDebouncedKaks] = useState(initialFilters.kaks || "");
   const [debouncedBrand, setDebouncedBrand] = useState(initialFilters.brand || "");
   const [debouncedModel, setDebouncedModel] = useState(initialFilters.model || "");
-  const [debouncedMinYear, setDebouncedMinYear] = useState(initialFilters.minYear || "");
-  const [debouncedMaxYear, setDebouncedMaxYear] = useState(initialFilters.maxYear || "");
-  const [debouncedMinKm, setDebouncedMinKm] = useState(initialFilters.minKm || "");
-  const [debouncedMaxKm, setDebouncedMaxKm] = useState(initialFilters.maxKm || "");
-  const [debouncedColor, setDebouncedColor] = useState(initialFilters.color || "");
-  
-  // Format price with dot separators (123.123)
-  const formatPrice = (value: string): string => {
-    // Remove non-digit characters
-    const digits = value.replace(/\D/g, '');
+
+  // Fetch all locations data on component mount
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const response = await fetch('/api/locations/all');
+        if (!response.ok) throw new Error('Failed to fetch locations');
+        
+        const data = await response.json();
+        setLocationsData(data);
+        
+        // Get all provinces
+        const allProvinces = Object.keys(data).map(p => p.charAt(0).toUpperCase() + p.slice(1));
+        setProvinces(['Tokat', ...allProvinces.filter(p => p.toLowerCase() !== 'tokat')]);
+      } catch (error) {
+        console.error('Error fetching locations:', error);
+      }
+    };
     
-    // Format with dot separators
-    if (digits) {
-      return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    fetchLocations();
+  }, []);
+
+  // Update districts when province changes
+  useEffect(() => {
+    if (!locationsData || !selectedProvince) return;
+    
+    const province = selectedProvince.toLowerCase();
+    
+    if (province === 'tokat') {
+      // For Tokat, use the static data
+      const tokatDistricts = Object.keys(neighborhoodsByDistrict).map(
+        d => d.charAt(0).toUpperCase() + d.slice(1)
+      );
+      setDistricts(tokatDistricts);
+    } else if (locationsData[province]) {
+      // For other provinces, use the dynamic data
+      const provinceDistricts = Object.keys(locationsData[province]).map(
+        d => d.charAt(0).toUpperCase() + d.slice(1)
+      );
+      setDistricts(provinceDistricts);
+    } else {
+      setDistricts([]);
     }
     
-    return '';
-  };
-  
-  // Handle price input changes
-  const handleMinPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const input = e.target;
-    const cursorPosition = input.selectionStart || 0;
-    const previousValue = minPrice;
-    const formattedValue = formatPrice(input.value);
-    
-    setMinPrice(formattedValue);
-    
-    // Calculate new cursor position
-    setTimeout(() => {
-      // Count dots before cursor in the previous value
-      const previousDots = (previousValue.substring(0, cursorPosition).match(/\./g) || []).length;
-      // Count dots before cursor in the new value
-      const newDots = (formattedValue.substring(0, cursorPosition).match(/\./g) || []).length;
-      // Adjust cursor position based on the difference in dots
-      const newPosition = cursorPosition + (newDots - previousDots);
-      input.setSelectionRange(newPosition, newPosition);
-    }, 0);
-    
-    // Set debounced value after 500ms
-    const timer = setTimeout(() => {
-      setDebouncedMinPrice(formattedValue);
-    }, 500);
-    
-    return () => clearTimeout(timer);
-  };
-  
-  // Handle max price input changes
-  const handleMaxPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const input = e.target;
-    const cursorPosition = input.selectionStart || 0;
-    const previousValue = maxPrice;
-    const formattedValue = formatPrice(input.value);
-    
-    setMaxPrice(formattedValue);
-    
-    // Calculate new cursor position
-    setTimeout(() => {
-      const previousDots = (previousValue.substring(0, cursorPosition).match(/\./g) || []).length;
-      const newDots = (formattedValue.substring(0, cursorPosition).match(/\./g) || []).length;
-      const newPosition = cursorPosition + (newDots - previousDots);
-      input.setSelectionRange(newPosition, newPosition);
-    }, 0);
-    
-    // Set debounced value after 500ms
-    const timer = setTimeout(() => {
-      setDebouncedMaxPrice(formattedValue);
-    }, 500);
-    
-    return () => clearTimeout(timer);
-  };
-  
-  // Handle debounced text input changes
-  const handleDebouncedInputChange = (value: string, setStateFunction: React.Dispatch<React.SetStateAction<string>>, setDebouncedFunction: React.Dispatch<React.SetStateAction<string>>) => {
-    setStateFunction(value);
-    
-    const timer = setTimeout(() => {
-      setDebouncedFunction(value);
-    }, 500);
-    
-    return () => clearTimeout(timer);
-  };
-  
-  // Get unformatted price (remove dots)
-  const getUnformattedPrice = (price: string): string => {
-    return price.replace(/\./g, '');
-  };
-  
+    // Reset district and neighborhood when province changes
+    if (!initialFilters.district) {
+      setSelectedDistrict("");
+      setSelectedNeighborhood("");
+    }
+  }, [selectedProvince, locationsData, initialFilters.district]);
+
   // Update neighborhoods when district changes
   useEffect(() => {
-    if (selectedDistrict) {
+    if (!selectedProvince || !selectedDistrict) {
+      setNeighborhoods([]);
+      return;
+    }
+    
+    const province = selectedProvince.toLowerCase();
+    const district = selectedDistrict.toLowerCase();
+    
+    if (province === 'tokat') {
+      // For Tokat, use the static data and retain the mahalle/köy separation
+      // Neighborhoods are rendered directly in the component from neighborhoodsByDistrict
+    } else if (locationsData && locationsData[province] && locationsData[province][district]) {
+      // For other provinces, use the dynamic data
+      setNeighborhoods(locationsData[province][district]);
+    } else {
+      setNeighborhoods([]);
+    }
+  }, [selectedProvince, selectedDistrict, locationsData]);
+  
+  // Update neighborhoods based on selected district (for Tokat)
+  useEffect(() => {
+    if (selectedProvince === 'tokat' && selectedDistrict) {
       // TypeScript için neighborhoodsByDistrict tipini belirtiyoruz
       const neighborhoods = neighborhoodsByDistrict as Record<string, { mahalle: Neighborhood[], koy: Neighborhood[] }>;
       
       // Mahalle ve köy dizilerini birleştiriyoruz
-      const districtData = neighborhoods[selectedDistrict];
+      const districtData = neighborhoods[selectedDistrict.toLowerCase()];
       const combinedNeighborhoods = districtData ? [...districtData.mahalle, ...districtData.koy] : [];
-      
-      setNeighborhoods(combinedNeighborhoods);
       
       // Reset neighborhood if not in the new list
       if (selectedNeighborhood && !combinedNeighborhoods.some((n: Neighborhood) => n.value === selectedNeighborhood)) {
         setSelectedNeighborhood('');
       }
-    } else {
-      setNeighborhoods([]);
-      setSelectedNeighborhood('');
     }
-  }, [selectedDistrict]);
+  }, [selectedDistrict, selectedNeighborhood, selectedProvince]);
+
+  // Format price with dot separators (123.456 -> 123.456)
+  const formatPrice = (value: string): string => {
+    const digits = value.replace(/\D/g, '');
+    return digits ? digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
+  };
+
+  // Remove dot separators for API calls
+  const getUnformattedPrice = (price: string): string => {
+    return price.replace(/\./g, '');
+  };
+
+  // Apply debounce for price inputs
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedMinPrice(minPrice);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [minPrice]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedMaxPrice(maxPrice);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [maxPrice]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedMinArea(minArea);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [minArea]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedMaxArea(maxArea);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [maxArea]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedKaks(kaks);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [kaks]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedBrand(brand);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [brand]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedModel(model);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [model]);
+  
+  // Handle province change
+  const handleProvinceChange = (value: string) => {
+    setSelectedProvince(value);
+  };
+
+  // Format label to capitalize first letter of each word
+  const formatLabel = (label: string) => {
+    return label
+      .toLowerCase()
+      .split(" ")
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  };
   
   // Apply filters
   const applyFilters = () => {
@@ -232,6 +300,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
     if (minArea) params.append('minArea', minArea);
     if (maxArea) params.append('maxArea', maxArea);
     if (saleStatus) params.append('listingStatus', saleStatus === 'sale' ? 'satilik' : 'kiralik');
+    if (selectedProvince && selectedProvince !== 'all') params.append('province', selectedProvince);
     if (selectedDistrict && selectedDistrict !== 'all') params.append('district', selectedDistrict);
     if (selectedNeighborhood && selectedNeighborhood !== 'all') params.append('neighborhood', selectedNeighborhood);
     
@@ -239,51 +308,167 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
     if (category === 'emlak' && selectedSubCategory && selectedSubCategory !== 'all') {
       params.append('mainCategory', selectedSubCategory);
     }
+
+    // Konut specific filters
+    if ((category === 'konut' || selectedSubCategory === 'konut') && roomCount && roomCount !== 'all') {
+      params.append('roomCount', roomCount);
+    }
+
+    if ((category === 'konut' || selectedSubCategory === 'konut') && konutType && konutType !== 'all') {
+      params.append('konutType', konutType);
+    }
+
+    if ((category === 'konut' || selectedSubCategory === 'konut') && heatingType && heatingType !== 'all') {
+      params.append('heatingType', heatingType);
+    }
+
+    if ((category === 'konut' || selectedSubCategory === 'konut') && hasBalcony === 'true') {
+      params.append('hasBalcony', hasBalcony);
+    }
+
+    if ((category === 'konut' || selectedSubCategory === 'konut') && hasElevator === 'true') {
+      params.append('hasElevator', hasElevator);
+    }
+
+    if ((category === 'konut' || selectedSubCategory === 'konut') && isFurnished === 'true') {
+      params.append('isFurnished', isFurnished);
+    }
+
+    if ((category === 'konut' || selectedSubCategory === 'konut') && allowsTrade === 'true') {
+      params.append('allowsTrade', allowsTrade);
+    }
+
+    if ((category === 'konut' || selectedSubCategory === 'konut') && isEligibleForCredit === 'true') {
+      params.append('isEligibleForCredit', isEligibleForCredit);
+    }
+
+    // Ticari specific filters
+    if ((category === 'ticari' || selectedSubCategory === 'ticari') && roomCount && roomCount !== 'all') {
+      params.append('roomCount', roomCount);
+    }
+
+    if ((category === 'ticari' || selectedSubCategory === 'ticari') && ticariType && ticariType !== 'all') {
+      params.append('ticariType', ticariType);
+    }
+
+    if ((category === 'ticari' || selectedSubCategory === 'ticari') && heatingType && heatingType !== 'all') {
+      params.append('heatingType', heatingType);
+    }
+
+    if ((category === 'ticari' || selectedSubCategory === 'ticari') && allowsTrade === 'true') {
+      params.append('allowsTrade', allowsTrade);
+    }
+
+    if ((category === 'ticari' || selectedSubCategory === 'ticari') && isEligibleForCredit === 'true') {
+      params.append('isEligibleForCredit', isEligibleForCredit);
+    }
+
+    // Arsa specific filters
+    if ((category === 'arsa' || selectedSubCategory === 'arsa') && arsaType && arsaType !== 'all') {
+      params.append('arsaType', arsaType);
+    }
+
+    if ((category === 'arsa' || selectedSubCategory === 'arsa') && kaks) {
+      params.append('kaks', kaks);
+    }
+
+    if ((category === 'arsa' || selectedSubCategory === 'arsa') && allowsTrade === 'true') {
+      params.append('allowsTrade', allowsTrade);
+    }
+
+    if ((category === 'arsa' || selectedSubCategory === 'arsa') && isEligibleForCredit === 'true') {
+      params.append('isEligibleForCredit', isEligibleForCredit);
+    }
+
+    // Vasita specific filters
+    if (category === 'vasita' && brand) {
+      params.append('brand', brand);
+    }
+
+    if (category === 'vasita' && model) {
+      params.append('model', model);
+    }
+
+    if (category === 'vasita' && minYear) {
+      params.append('minYear', minYear);
+    }
+
+    if (category === 'vasita' && maxYear) {
+      params.append('maxYear', maxYear);
+    }
+
+    if (category === 'vasita' && fuelType && fuelType !== 'all') {
+      params.append('fuelType', fuelType);
+    }
+
+    if (category === 'vasita' && transmission && transmission !== 'all') {
+      params.append('transmission', transmission);
+    }
+
+    if (category === 'vasita' && minKm) {
+      params.append('minKm', minKm);
+    }
+
+    if (category === 'vasita' && maxKm) {
+      params.append('maxKm', maxKm);
+    }
+
+    if (category === 'vasita' && color) {
+      params.append('color', color);
+    }
+
+    if (category === 'vasita' && hasWarranty === 'true') {
+      params.append('hasWarranty', hasWarranty);
+    }
+
+    if (category === 'vasita' && hasDamageRecord === 'true') {
+      params.append('hasDamageRecord', hasDamageRecord);
+    }
+
+    if (category === 'vasita' && allowsTrade === 'true') {
+      params.append('allowsTrade', allowsTrade);
+    }
+
+    // Convert current page to category page with filters
+    let path = '';
     
-    // Category specific filters
-    if (category === 'konut' || (category === 'emlak' && selectedSubCategory === 'konut')) {
-      if (roomCount && roomCount !== 'all') params.append('roomCount', roomCount);
-      if (konutType && konutType !== 'all') params.append('konutType', konutType);
-      if (heatingType && heatingType !== 'all') params.append('heatingType', heatingType);
-      if (hasBalcony && hasBalcony !== 'all') params.append('hasBalcony', hasBalcony);
-      if (hasElevator && hasElevator !== 'all') params.append('hasElevator', hasElevator);
-      if (isFurnished && isFurnished !== 'all') params.append('isFurnished', isFurnished);
-      if (allowsTrade && allowsTrade !== 'all') params.append('allowsTrade', allowsTrade);
-      if (isEligibleForCredit && isEligibleForCredit !== 'all') params.append('isEligibleForCredit', isEligibleForCredit);
-    } else if (category === 'ticari' || (category === 'emlak' && selectedSubCategory === 'ticari')) {
-      if (roomCount && roomCount !== 'all') params.append('roomCount', roomCount);
-      if (ticariType && ticariType !== 'all') params.append('ticariType', ticariType);
-      if (heatingType && heatingType !== 'all') params.append('heatingType', heatingType);
-      if (allowsTrade && allowsTrade !== 'all') params.append('allowsTrade', allowsTrade);
-      if (isEligibleForCredit && isEligibleForCredit !== 'all') params.append('isEligibleForCredit', isEligibleForCredit);
-    } else if (category === 'arsa' || (category === 'emlak' && selectedSubCategory === 'arsa')) {
-      if (arsaType && arsaType !== 'all') params.append('arsaType', arsaType);
-      if (kaks) params.append('kaks', kaks);
-      if (allowsTrade && allowsTrade !== 'all') params.append('allowsTrade', allowsTrade);
-      if (isEligibleForCredit && isEligibleForCredit !== 'all') params.append('isEligibleForCredit', isEligibleForCredit);
-    } else if (category === 'vasita') {
-      if (brand) params.append('brand', brand);
-      if (model) params.append('model', model);
-      if (minYear) params.append('minYear', minYear);
-      if (maxYear) params.append('maxYear', maxYear);
-      if (fuelType && fuelType !== 'all') params.append('fuelType', fuelType);
-      if (transmission && transmission !== 'all') params.append('transmission', transmission);
-      if (minKm) params.append('minKm', minKm);
-      if (maxKm) params.append('maxKm', maxKm);
-      if (color) params.append('color', color);
-      if (hasWarranty && hasWarranty !== 'all') params.append('hasWarranty', hasWarranty);
-      if (hasDamageRecord && hasDamageRecord !== 'all') params.append('hasDamageRecord', hasDamageRecord);
-      if (allowsTrade && allowsTrade !== 'all') params.append('allowsTrade', allowsTrade);
+    if (category === 'emlak') {
+      if (selectedSubCategory && selectedSubCategory !== 'all') {
+        path = `/ilanlar/${selectedSubCategory}`;
+      } else {
+        path = '/ilanlar/emlak';
+      }
+    } else {
+      path = `/ilanlar/${category}`;
     }
     
-    router.push(`/ilanlar/${category}?${params.toString()}`);
+    router.push(`${path}?${params.toString()}`);
   };
-  
+
+  // Handle input change for price with formatting
+  const handlePriceInput = (e: React.ChangeEvent<HTMLInputElement>, setter: React.Dispatch<React.SetStateAction<string>>) => {
+    const input = e.target;
+    const cursorPos = input.selectionStart || 0;
+    const prevValue = input.value;
+    
+    // Format value
+    const formatted = formatPrice(input.value);
+    setter(formatted);
+    
+    // Restore cursor position
+    setTimeout(() => {
+      const prevDots = (prevValue.substring(0, cursorPos).match(/\./g) || []).length;
+      const newDots = (formatted.substring(0, cursorPos).match(/\./g) || []).length;
+      input.setSelectionRange(cursorPos + (newDots - prevDots), cursorPos + (newDots - prevDots));
+    }, 0);
+  };
+
   // Auto-apply filters when select values change
   useEffect(() => {
     // Don't apply filters on initial render
     const isInitialRender = 
       (saleStatus === (initialFilters.listingStatus ? (initialFilters.listingStatus === "kiralik" ? "rent" : "sale") : "")) &&
+      (selectedProvince === (initialFilters.province || "tokat")) &&
       (selectedDistrict === (initialFilters.district || "")) &&
       (selectedNeighborhood === (initialFilters.neighborhood || "")) &&
       (mainCategory === (initialFilters.mainCategory || "all")) &&
@@ -296,7 +481,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
       (isFurnished === (initialFilters.isFurnished || "all")) &&
       (allowsTrade === (initialFilters.allowsTrade || "all")) &&
       (isEligibleForCredit === (initialFilters.isEligibleForCredit || "all")) &&
-      (ticariType === (initialFilters.konutType || "all")) &&
+      (ticariType === (initialFilters.ticariType || "all")) &&
       (arsaType === (initialFilters.arsaType || "all")) &&
       (fuelType === (initialFilters.fuelType || "all")) &&
       (transmission === (initialFilters.transmission || "all")) &&
@@ -307,7 +492,8 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
       applyFilters();
     }
   }, [
-    saleStatus, 
+    saleStatus,
+    selectedProvince,
     selectedDistrict, 
     selectedNeighborhood, 
     mainCategory, 
@@ -327,23 +513,18 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
     hasWarranty,
     hasDamageRecord
   ]);
-  
-  // Auto-apply filters when debounced input values change
+
+  // Auto-apply filters when debounced values change
   useEffect(() => {
-    // Don't apply filters on initial render
-    const isInitialRender = 
+    // Don't apply on initial render
+    const isInitialRender =
       (debouncedMinPrice === (initialFilters.minPrice || "")) &&
       (debouncedMaxPrice === (initialFilters.maxPrice || "")) &&
       (debouncedMinArea === (initialFilters.minArea || "")) &&
       (debouncedMaxArea === (initialFilters.maxArea || "")) &&
       (debouncedKaks === (initialFilters.kaks || "")) &&
       (debouncedBrand === (initialFilters.brand || "")) &&
-      (debouncedModel === (initialFilters.model || "")) &&
-      (debouncedMinYear === (initialFilters.minYear || "")) &&
-      (debouncedMaxYear === (initialFilters.maxYear || "")) &&
-      (debouncedMinKm === (initialFilters.minKm || "")) &&
-      (debouncedMaxKm === (initialFilters.maxKm || "")) &&
-      (debouncedColor === (initialFilters.color || ""));
+      (debouncedModel === (initialFilters.model || ""));
     
     if (!isInitialRender) {
       applyFilters();
@@ -355,12 +536,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
     debouncedMaxArea,
     debouncedKaks,
     debouncedBrand,
-    debouncedModel,
-    debouncedMinYear,
-    debouncedMaxYear,
-    debouncedMinKm,
-    debouncedMaxKm,
-    debouncedColor
+    debouncedModel
   ]);
   
   // Reset filters
@@ -371,6 +547,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
     setMinArea("");
     setMaxArea("");
     setSaleStatus("");
+    setSelectedProvince("tokat"); // Reset province to Tokat
     setSelectedDistrict("");
     setSelectedNeighborhood("");
     setMainCategory("all");
@@ -406,23 +583,9 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
     setDebouncedKaks("");
     setDebouncedBrand("");
     setDebouncedModel("");
-    setDebouncedMinYear("");
-    setDebouncedMaxYear("");
-    setDebouncedMinKm("");
-    setDebouncedMaxKm("");
-    setDebouncedColor("");
     
     // Sayfayı yeniliyoruz
     router.push(`/ilanlar/${category}`);
-  };
-  
-  // Format label text with first letter capitalized
-  const formatLabel = (label: string) => {
-    return label
-      .toLowerCase()
-      .split(" ")
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ");
   };
   
   return (
@@ -463,7 +626,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
                 type="text" 
                 placeholder="Min TL" 
                 value={minPrice}
-                onChange={handleMinPriceChange}
+                onChange={(e) => handlePriceInput(e, setMinPrice)}
                 className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary"
               />
             </div>
@@ -472,7 +635,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
                 type="text" 
                 placeholder="Max TL" 
                 value={maxPrice}
-                onChange={handleMaxPriceChange}
+                onChange={(e) => handlePriceInput(e, setMaxPrice)}
                 className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary"
               />
             </div>
@@ -489,7 +652,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
                   type="text" 
                   placeholder="Min m²" 
                   value={minArea}
-                  onChange={(e) => handleDebouncedInputChange(e.target.value, setMinArea, setDebouncedMinArea)}
+                  onChange={(e) => setMinArea(e.target.value)}
                   className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary"
                 />
               </div>
@@ -498,7 +661,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
                   type="text" 
                   placeholder="Max m²" 
                   value={maxArea}
-                  onChange={(e) => handleDebouncedInputChange(e.target.value, setMaxArea, setDebouncedMaxArea)}
+                  onChange={(e) => setMaxArea(e.target.value)}
                   className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary"
                 />
               </div>
@@ -605,46 +768,40 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
             <div>
               <Label className="text-sm font-medium block mb-2">Özellikler</Label>
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Balkon</span>
-                  <Select value={hasBalcony} onValueChange={setHasBalcony}>
-                    <SelectTrigger className="w-24 px-2 py-1 border border-gray-200 rounded-md text-sm focus:border-primary focus:ring-1 focus:ring-primary">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Farketmez</SelectItem>
-                      <SelectItem value="true">Var</SelectItem>
-                      <SelectItem value="false">Yok</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                     onClick={() => setHasBalcony(hasBalcony === 'true' ? 'false' : 'true')}>
+                  <div className="flex items-center justify-center">
+                    <div className={`w-5 h-5 rounded border flex items-center justify-center ${hasBalcony === 'true' ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
+                      {hasBalcony === 'true' && <Check className="h-3 w-3 text-white stroke-[3]" />}
+                    </div>
+                  </div>
+                  <Label className="font-medium cursor-pointer flex-1">
+                    Balkon
+                  </Label>
                 </div>
                 
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Asansör</span>
-                  <Select value={hasElevator} onValueChange={setHasElevator}>
-                    <SelectTrigger className="w-24 px-2 py-1 border border-gray-200 rounded-md text-sm focus:border-primary focus:ring-1 focus:ring-primary">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Farketmez</SelectItem>
-                      <SelectItem value="true">Var</SelectItem>
-                      <SelectItem value="false">Yok</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                     onClick={() => setHasElevator(hasElevator === 'true' ? 'false' : 'true')}>
+                  <div className="flex items-center justify-center">
+                    <div className={`w-5 h-5 rounded border flex items-center justify-center ${hasElevator === 'true' ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
+                      {hasElevator === 'true' && <Check className="h-3 w-3 text-white stroke-[3]" />}
+                    </div>
+                  </div>
+                  <Label className="font-medium cursor-pointer flex-1">
+                    Asansör
+                  </Label>
                 </div>
                 
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Eşyalı</span>
-                  <Select value={isFurnished} onValueChange={setIsFurnished}>
-                    <SelectTrigger className="w-24 px-2 py-1 border border-gray-200 rounded-md text-sm focus:border-primary focus:ring-1 focus:ring-primary">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Farketmez</SelectItem>
-                      <SelectItem value="true">Evet</SelectItem>
-                      <SelectItem value="false">Hayır</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                     onClick={() => setIsFurnished(isFurnished === 'true' ? 'false' : 'true')}>
+                  <div className="flex items-center justify-center">
+                    <div className={`w-5 h-5 rounded border flex items-center justify-center ${isFurnished === 'true' ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
+                      {isFurnished === 'true' && <Check className="h-3 w-3 text-white stroke-[3]" />}
+                    </div>
+                  </div>
+                  <Label className="font-medium cursor-pointer flex-1">
+                    Eşyalı
+                  </Label>
                 </div>
               </div>
             </div>
@@ -703,7 +860,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
                 type="text" 
                 placeholder="KAKS/Emsal Değeri" 
                 value={kaks}
-                onChange={(e) => handleDebouncedInputChange(e.target.value, setKaks, setDebouncedKaks)}
+                onChange={(e) => setKaks(e.target.value)}
                 className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary"
               />
             </div>
@@ -720,7 +877,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
                 type="text" 
                 placeholder="Marka" 
                 value={brand}
-                onChange={(e) => handleDebouncedInputChange(e.target.value, setBrand, setDebouncedBrand)}
+                onChange={(e) => setBrand(e.target.value)}
                 className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary"
               />
             </div>
@@ -732,7 +889,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
                 type="text" 
                 placeholder="Model" 
                 value={model}
-                onChange={(e) => handleDebouncedInputChange(e.target.value, setModel, setDebouncedModel)}
+                onChange={(e) => setModel(e.target.value)}
                 className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary"
               />
             </div>
@@ -745,14 +902,14 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
                   type="text" 
                   placeholder="Min Yıl" 
                   value={minYear}
-                  onChange={(e) => handleDebouncedInputChange(e.target.value, setMinYear, setDebouncedMinYear)}
+                  onChange={(e) => setMinYear(e.target.value)}
                   className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary"
                 />
                 <Input 
                   type="text" 
                   placeholder="Max Yıl" 
                   value={maxYear}
-                  onChange={(e) => handleDebouncedInputChange(e.target.value, setMaxYear, setDebouncedMaxYear)}
+                  onChange={(e) => setMaxYear(e.target.value)}
                   className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary"
                 />
               </div>
@@ -766,14 +923,14 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
                   type="text" 
                   placeholder="Min KM" 
                   value={minKm}
-                  onChange={(e) => handleDebouncedInputChange(e.target.value, setMinKm, setDebouncedMinKm)}
+                  onChange={(e) => setMinKm(e.target.value)}
                   className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary"
                 />
                 <Input 
                   type="text" 
                   placeholder="Max KM" 
                   value={maxKm}
-                  onChange={(e) => handleDebouncedInputChange(e.target.value, setMaxKm, setDebouncedMaxKm)}
+                  onChange={(e) => setMaxKm(e.target.value)}
                   className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary"
                 />
               </div>
@@ -845,46 +1002,40 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
             <div>
               <Label className="text-sm font-medium block mb-2">Özellikler</Label>
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Garanti</span>
-                  <Select value={hasWarranty} onValueChange={setHasWarranty}>
-                    <SelectTrigger className="w-24 px-2 py-1 border border-gray-200 rounded-md text-sm focus:border-primary focus:ring-1 focus:ring-primary">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Farketmez</SelectItem>
-                      <SelectItem value="true">Var</SelectItem>
-                      <SelectItem value="false">Yok</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                     onClick={() => setHasWarranty(hasWarranty === 'true' ? 'all' : 'true')}>
+                  <div className="flex items-center justify-center">
+                    <div className={`w-5 h-5 rounded border flex items-center justify-center ${hasWarranty === 'true' ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
+                      {hasWarranty === 'true' && <Check className="h-3 w-3 text-white stroke-[3]" />}
+                    </div>
+                  </div>
+                  <Label className="font-medium cursor-pointer flex-1">
+                    Garanti
+                  </Label>
                 </div>
                 
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Hasar Kaydı</span>
-                  <Select value={hasDamageRecord} onValueChange={setHasDamageRecord}>
-                    <SelectTrigger className="w-24 px-2 py-1 border border-gray-200 rounded-md text-sm focus:border-primary focus:ring-1 focus:ring-primary">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Farketmez</SelectItem>
-                      <SelectItem value="true">Var</SelectItem>
-                      <SelectItem value="false">Yok</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                     onClick={() => setHasDamageRecord(hasDamageRecord === 'true' ? 'all' : 'true')}>
+                  <div className="flex items-center justify-center">
+                    <div className={`w-5 h-5 rounded border flex items-center justify-center ${hasDamageRecord === 'true' ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
+                      {hasDamageRecord === 'true' && <Check className="h-3 w-3 text-white stroke-[3]" />}
+                    </div>
+                  </div>
+                  <Label className="font-medium cursor-pointer flex-1">
+                    Hasar Kaydı
+                  </Label>
                 </div>
                 
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Takas</span>
-                  <Select value={allowsTrade} onValueChange={setAllowsTrade}>
-                    <SelectTrigger className="w-24 px-2 py-1 border border-gray-200 rounded-md text-sm focus:border-primary focus:ring-1 focus:ring-primary">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Farketmez</SelectItem>
-                      <SelectItem value="true">Var</SelectItem>
-                      <SelectItem value="false">Yok</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                     onClick={() => setAllowsTrade(allowsTrade === 'true' ? 'all' : 'true')}>
+                  <div className="flex items-center justify-center">
+                    <div className={`w-5 h-5 rounded border flex items-center justify-center ${allowsTrade === 'true' ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
+                      {allowsTrade === 'true' && <Check className="h-3 w-3 text-white stroke-[3]" />}
+                    </div>
+                  </div>
+                  <Label className="font-medium cursor-pointer flex-1">
+                    Takas
+                  </Label>
                 </div>
               </div>
             </div>
@@ -897,64 +1048,71 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
           <div>
             <Label className="text-sm font-medium block mb-2">Diğer Özellikler</Label>
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Takas</span>
-                <Select value={allowsTrade} onValueChange={setAllowsTrade}>
-                  <SelectTrigger className="w-24 px-2 py-1 border border-gray-200 rounded-md text-sm focus:border-primary focus:ring-1 focus:ring-primary">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Farketmez</SelectItem>
-                    <SelectItem value="true">Var</SelectItem>
-                    <SelectItem value="false">Yok</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                   onClick={() => setAllowsTrade(allowsTrade === 'true' ? 'all' : 'true')}>
+                <div className="flex items-center justify-center">
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center ${allowsTrade === 'true' ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
+                    {allowsTrade === 'true' && <Check className="h-3 w-3 text-white stroke-[3]" />}
+                  </div>
+                </div>
+                <Label className="font-medium cursor-pointer flex-1">
+                  Takas
+                </Label>
               </div>
               
               {(category === 'konut' || category === 'ticari' || category === 'arsa' || 
                 (category === 'emlak' && (selectedSubCategory === 'konut' || selectedSubCategory === 'ticari' || selectedSubCategory === 'arsa'))) && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Krediye Uygun</span>
-                  <Select value={isEligibleForCredit} onValueChange={setIsEligibleForCredit}>
-                    <SelectTrigger className="w-24 px-2 py-1 border border-gray-200 rounded-md text-sm focus:border-primary focus:ring-1 focus:ring-primary">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Farketmez</SelectItem>
-                      <SelectItem value="true">Evet</SelectItem>
-                      <SelectItem value="false">Hayır</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                     onClick={() => setIsEligibleForCredit(isEligibleForCredit === 'true' ? 'false' : 'true')}>
+                  <div className="flex items-center justify-center">
+                    <div className={`w-5 h-5 rounded border flex items-center justify-center ${isEligibleForCredit === 'true' ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
+                      {isEligibleForCredit === 'true' && <Check className="h-3 w-3 text-white stroke-[3]" />}
+                    </div>
+                  </div>
+                  <Label className="font-medium cursor-pointer flex-1">
+                    Krediye Uygun
+                  </Label>
                 </div>
               )}
             </div>
           </div>
         )}
         
-        {/* District and Neighborhood */}
+        {/* Location Filters */}
         <div>
-          <Label className="text-sm font-medium block mb-2">İlçe</Label>
-          <Select value={selectedDistrict} onValueChange={setSelectedDistrict}>
+          <Label className="text-sm font-medium block mb-2">İl</Label>
+          <Select value={selectedProvince} onValueChange={handleProvinceChange}>
             <SelectTrigger className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary">
-              <SelectValue placeholder="İlçe Seçin" />
+              <SelectValue placeholder="İl Seçin" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tümü</SelectItem>
-              <SelectItem value="merkez">Merkez</SelectItem>
-              <SelectItem value="almus">Almus</SelectItem>
-              <SelectItem value="artova">Artova</SelectItem>
-              <SelectItem value="basciftlik">Başçiftlik</SelectItem>
-              <SelectItem value="erbaa">Erbaa</SelectItem>
-              <SelectItem value="niksar">Niksar</SelectItem>
-              <SelectItem value="pazar">Pazar</SelectItem>
-              <SelectItem value="resadiye">Reşadiye</SelectItem>
-              <SelectItem value="sulusaray">Sulusaray</SelectItem>
-              <SelectItem value="turhal">Turhal</SelectItem>
-              <SelectItem value="yesilyurt">Yeşilyurt</SelectItem>
-              <SelectItem value="zile">Zile</SelectItem>
+            <SelectContent className="max-h-[200px] overflow-y-auto">
+              {provinces.map((province) => (
+                <SelectItem key={province.toLowerCase()} value={province.toLowerCase()}>
+                  {province}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
+        
+        {selectedProvince && (
+          <div>
+            <Label className="text-sm font-medium block mb-2">İlçe</Label>
+            <Select value={selectedDistrict} onValueChange={setSelectedDistrict}>
+              <SelectTrigger className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary">
+                <SelectValue placeholder="İlçe Seçin" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[200px] overflow-y-auto">
+                <SelectItem value="all">Tümü</SelectItem>
+                {districts.map((district) => (
+                  <SelectItem key={district.toLowerCase()} value={district.toLowerCase()}>
+                    {district}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         
         {selectedDistrict && selectedDistrict !== 'all' && (
           <div>
@@ -965,9 +1123,9 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
               </SelectTrigger>
               <SelectContent className="max-h-[200px] sm:max-h-[250px] md:max-h-[300px]">
                 <SelectItem value="all">Tümü</SelectItem>
-                {selectedDistrict && (
+                {selectedProvince === 'tokat' ? (
+                  // For Tokat, use the static data with mahalle/köy separation
                   <>
-                    {/* Mahalle başlığı ve listesi */}
                     {(() => {
                       // TypeScript için neighborhoodsByDistrict tipini belirtiyoruz
                       const neighborhoods = neighborhoodsByDistrict as Record<string, { mahalle: Neighborhood[], koy: Neighborhood[] }>;
@@ -1001,6 +1159,13 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
                       );
                     })()}
                   </>
+                ) : (
+                  // For other provinces, use the dynamic data
+                  neighborhoods.map((neighborhood) => (
+                    <SelectItem key={neighborhood} value={neighborhood}>
+                      {formatLabel(neighborhood)}
+                    </SelectItem>
+                  ))
                 )}
               </SelectContent>
             </Select>

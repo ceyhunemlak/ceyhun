@@ -444,7 +444,27 @@ export default function ListingDetail() {
       return [{ id: "default", url: "/images/ce.png" }];
     }
     
-    return validImages;
+    // Sort images by order_index to ensure correct order
+    const sortedImages = [...validImages].sort((a, b) => {
+      // First check if order_index exists and use it for sorting
+      if (typeof a.order_index === 'number' && typeof b.order_index === 'number') {
+        return a.order_index - b.order_index;
+      }
+      
+      // If order_index doesn't exist, prioritize cover image
+      if (a.is_cover) return -1;
+      if (b.is_cover) return 1;
+      
+      return 0;
+    });
+    
+    console.log("Sorted images by order_index:", sortedImages.map(img => ({
+      id: img.id,
+      order_index: img.order_index,
+      is_cover: img.is_cover
+    })));
+    
+    return sortedImages;
   }, [listing]);
   
   // Add cache-busting for Cloudinary URLs

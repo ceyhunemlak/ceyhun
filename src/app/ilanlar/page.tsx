@@ -18,9 +18,26 @@ const ImageGallery = ({
   images, 
   title 
 }: { 
-  images: Array<{id: string, url: string}>, 
+  images: Array<{id: string, url: string, order_index?: number, is_cover?: boolean}>, 
   title: string 
 }) => {
+  // Sort images by order_index and/or is_cover flag
+  const sortedImages = React.useMemo(() => {
+    // Create a copy of the array to avoid mutating props
+    return [...images].sort((a, b) => {
+      // First check if order_index exists and use it for sorting
+      if (typeof a.order_index === 'number' && typeof b.order_index === 'number') {
+        return a.order_index - b.order_index;
+      }
+      
+      // If order_index doesn't exist, prioritize cover image
+      if (a.is_cover) return -1;
+      if (b.is_cover) return 1;
+      
+      return 0;
+    });
+  }, [images]);
+
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -34,13 +51,13 @@ const ImageGallery = ({
   const nextImage = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev + 1) % images.length);
+    setCurrentImageIndex((prev) => (prev + 1) % sortedImages.length);
   };
   
   const prevImage = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+    setCurrentImageIndex((prev) => (prev - 1 + sortedImages.length) % sortedImages.length);
   };
   
   // Add cache-busting for Cloudinary URLs
@@ -66,7 +83,7 @@ const ImageGallery = ({
       )}
       
       <Image
-        src={images[currentImageIndex]?.url ? addCacheBuster(images[currentImageIndex].url) : "/images/ce.png"}
+        src={sortedImages[currentImageIndex]?.url ? addCacheBuster(sortedImages[currentImageIndex].url) : "/images/ce.png"}
         alt={title}
         className={`object-cover rounded-lg transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
         fill
@@ -74,7 +91,7 @@ const ImageGallery = ({
         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 40vw, 33vw"
         onLoad={() => setImageLoaded(true)}
         onError={() => {
-          console.error(`Failed to load image: ${images[currentImageIndex]?.url}`);
+          console.error(`Failed to load image: ${sortedImages[currentImageIndex]?.url}`);
           setImageError(true);
         }}
         priority={currentImageIndex === 0} // Prioritize loading the first image
@@ -160,6 +177,8 @@ function AllListingsContent() {
   const district = searchParams.get('district') || "";
   const neighborhood = searchParams.get('neighborhood') || "";
   const searchQuery = searchParams.get('search') || "";
+  // Add province to the filter states
+  const province = searchParams.get('province') || "";
   
   // Sorting states
   const [sortOption, setSortOption] = useState<SortOption>("newest");
@@ -367,7 +386,7 @@ function AllListingsContent() {
     
     // Apply remaining filters if no search query
     applyRemainingFilters(filtered);
-  }, [listings, minPrice, maxPrice, minArea, maxArea, listingStatus, district, neighborhood, sortOption, searchQuery]);
+  }, [listings, minPrice, maxPrice, minArea, maxArea, listingStatus, district, neighborhood, province, sortOption, searchQuery]);
   
   // Helper function to apply remaining filters
   const applyRemainingFilters = (filtered: Listing[]) => {
@@ -400,6 +419,13 @@ function AllListingsContent() {
     // Filter by listing status
     if (listingStatus) {
       filtered = filtered.filter(listing => listing.listing_status === listingStatus);
+    }
+    
+    // Filter by province
+    if (province) {
+      filtered = filtered.filter(listing => 
+        listing.province && listing.province.toLowerCase() === province.toLowerCase()
+      );
     }
     
     // Filter by district

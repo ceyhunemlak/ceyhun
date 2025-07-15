@@ -123,7 +123,8 @@ const CategorySelection = ({
       { id: "daire", name: "Daire" },
       { id: "villa", name: "Villa" },
       { id: "mustakil_ev", name: "Müstakil Ev" },
-      { id: "bina", name: "Bina" }
+      { id: "bina", name: "Bina" },
+      { id: "prefabrik", name: "Prefabrik" }
     ],
     ticari: [
       { id: "dukkan", name: "Dükkan" },
@@ -730,6 +731,16 @@ export default function AddListing() {
     if (currentStep === 2) {
       // Check required fields based on the selected category
       if (selectedCategory === "konut") {
+        // For prefabrik, only validate title, description and price
+        if (selectedType === "prefabrik") {
+          return !!(
+            formData.title && 
+            formData.description && 
+            formData.price
+          );
+        }
+        
+        // For other konut types, validate all required fields
         return !!(
           formData.title && 
           formData.description && 
@@ -744,6 +755,16 @@ export default function AddListing() {
       }
       
       if (selectedCategory === "ticari") {
+        // Special validation for taksi_hatti and otobus_hatti
+        if (selectedType === "otobus_hatti" || selectedType === "taksi_hatti") {
+          return !!(
+            formData.title && 
+            formData.description && 
+            formData.price
+          );
+        }
+        
+        // Normal validation for other ticari types
         return !!(
           formData.title && 
           formData.description && 
@@ -1022,36 +1043,55 @@ export default function AddListing() {
       // Add category-specific fields
       if (selectedCategory === 'konut') {
         listingData.konut_type = handleEnumField(selectedType);
-        listingData.gross_sqm = parseFloat(formData.grossArea);
-        listingData.net_sqm = parseFloat(formData.netArea);
         
-        // Set room_count based on property type
-        if (selectedType === 'bina') {
-          // For buildings, set a default room count
+        // For prefabrik, only use title, description, and price
+        if (selectedType === 'prefabrik') {
+          // Set default values for required fields in the database
+          listingData.gross_sqm = 0;
+          listingData.net_sqm = 0;
           listingData.room_count = handleEnumField('1+0');
-          // Add apartments per floor field
-          listingData.apartments_per_floor = parseInt(formData.apartmentsPerFloor);
-        } else {
-          listingData.room_count = handleEnumField(formData.roomCount);
-        }
-        
-        listingData.building_age = parseInt(formData.buildingAge);
-        
-        // Set floor based on property type
-        if (selectedType === 'villa' || selectedType === 'mustakil_ev' || selectedType === 'bina') {
-          // For villas, detached houses, and buildings, set a default floor
+          listingData.building_age = 0;
           listingData.floor = 0;
+          listingData.total_floors = 1;
+          listingData.heating = null;
+          listingData.has_balcony = false;
+          listingData.has_elevator = false;
+          listingData.is_furnished = false;
+          listingData.allows_trade = false;
+          listingData.is_eligible_for_credit = false;
         } else {
-          listingData.floor = parseInt(formData.floor || "0");
+          // For other konut types, use all form data
+          listingData.gross_sqm = parseFloat(formData.grossArea);
+          listingData.net_sqm = parseFloat(formData.netArea);
+          
+          // Set room_count based on property type
+          if (selectedType === 'bina') {
+            // For buildings, set a default room count
+            listingData.room_count = handleEnumField('1+0');
+            // Add apartments per floor field
+            listingData.apartments_per_floor = parseInt(formData.apartmentsPerFloor);
+          } else {
+            listingData.room_count = handleEnumField(formData.roomCount);
+          }
+          
+          listingData.building_age = parseInt(formData.buildingAge);
+          
+          // Set floor based on property type
+          if (selectedType === 'villa' || selectedType === 'mustakil_ev' || selectedType === 'bina') {
+            // For villas, detached houses, and buildings, set a default floor
+            listingData.floor = 0;
+          } else {
+            listingData.floor = parseInt(formData.floor || "0");
+          }
+          
+          listingData.total_floors = parseInt(formData.totalFloors);
+          listingData.heating = handleEnumField(formData.heating);
+          listingData.has_balcony = formData.hasBalcony || false;
+          listingData.has_elevator = formData.hasElevator || false;
+          listingData.is_furnished = formData.isFurnished || false;
+          listingData.allows_trade = formData.allowsTrade || false;
+          listingData.is_eligible_for_credit = formData.isEligibleForCredit || false;
         }
-        
-        listingData.total_floors = parseInt(formData.totalFloors);
-        listingData.heating = handleEnumField(formData.heating);
-        listingData.has_balcony = formData.hasBalcony || false;
-        listingData.has_elevator = formData.hasElevator || false;
-        listingData.is_furnished = formData.isFurnished || false;
-        listingData.allows_trade = formData.allowsTrade || false;
-        listingData.is_eligible_for_credit = formData.isEligibleForCredit || false;
       } else if (selectedCategory === 'ticari') {
         listingData.ticari_type = handleEnumField(selectedType);
         

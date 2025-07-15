@@ -19,12 +19,29 @@ const ImageGallery = ({
   images, 
   title 
 }: { 
-  images: Array<{id: string, url: string}>, 
+  images: Array<{id: string, url: string, order_index?: number, is_cover?: boolean}>, 
   title: string 
 }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  
+  // Sort images by order_index and/or is_cover flag
+  const sortedImages = React.useMemo(() => {
+    // Create a copy of the array to avoid mutating props
+    return [...images].sort((a, b) => {
+      // First check if order_index exists and use it for sorting
+      if (typeof a.order_index === 'number' && typeof b.order_index === 'number') {
+        return a.order_index - b.order_index;
+      }
+      
+      // If order_index doesn't exist, prioritize cover image
+      if (a.is_cover) return -1;
+      if (b.is_cover) return 1;
+      
+      return 0;
+    });
+  }, [images]);
   
   // Reset loading state when image changes
   useEffect(() => {
@@ -35,13 +52,13 @@ const ImageGallery = ({
   const nextImage = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev + 1) % images.length);
+    setCurrentImageIndex((prev) => (prev + 1) % sortedImages.length);
   };
   
   const prevImage = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+    setCurrentImageIndex((prev) => (prev - 1 + sortedImages.length) % sortedImages.length);
   };
   
   // Add cache-busting for Cloudinary URLs
@@ -67,7 +84,7 @@ const ImageGallery = ({
       )}
       
       <Image
-        src={images[currentImageIndex]?.url ? addCacheBuster(images[currentImageIndex].url) : "/images/ce.png"}
+        src={sortedImages[currentImageIndex]?.url ? addCacheBuster(sortedImages[currentImageIndex].url) : "/images/ce.png"}
         alt={title}
         className={`object-cover rounded-lg transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
         fill
@@ -75,7 +92,7 @@ const ImageGallery = ({
         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 40vw, 33vw"
         onLoad={() => setImageLoaded(true)}
         onError={() => {
-          console.error(`Failed to load image: ${images[currentImageIndex]?.url}`);
+          console.error(`Failed to load image: ${sortedImages[currentImageIndex]?.url}`);
           setImageError(true);
         }}
         priority={currentImageIndex === 0} // Prioritize loading the first image
@@ -178,6 +195,9 @@ function EmlakListingsContent() {
   const searchQuery = searchParams.get('search') || "";
   const mainCategory = searchParams.get('mainCategory') || "all"; // Ana kategori filtresi
   
+  // Add province to the filter states
+  const province = searchParams.get('province') || "";
+
   // Sorting states
   const [sortOption, setSortOption] = useState<SortOption>("newest");
   
@@ -289,19 +309,43 @@ function EmlakListingsContent() {
                   enhancedListing.rooms = konutDetails.room_count || 'Belirtilmemiş';
                   enhancedListing.area = konutDetails.gross_sqm || konutDetails.net_sqm || undefined;
                   enhancedListing.konut_type = konutDetails.konut_type || 'Belirtilmemiş';
+                  // Map additional attributes for filtering
+                  enhancedListing.heating_type = konutDetails.heating;
+                  enhancedListing.has_balcony = konutDetails.has_balcony;
+                  enhancedListing.has_elevator = konutDetails.has_elevator;
+                  enhancedListing.is_furnished = konutDetails.is_furnished;
+                  enhancedListing.allows_trade = konutDetails.allows_trade;
+                  enhancedListing.is_eligible_for_credit = konutDetails.is_eligible_for_credit;
                 }
               } else if (listing.property_type === 'ticari' && detailData.ticari_details && detailData.ticari_details.length > 0) {
                 const ticariDetails = detailData.ticari_details[0];
                 if (ticariDetails) {
                   enhancedListing.rooms = ticariDetails.room_count ? ticariDetails.room_count.toString() : 'Belirtilmemiş';
                   enhancedListing.area = ticariDetails.gross_sqm || ticariDetails.net_sqm || undefined;
+                  // Map additional attributes for filtering
+                  enhancedListing.heating_type = ticariDetails.heating;
+                  enhancedListing.allows_trade = ticariDetails.allows_trade;
+                  enhancedListing.is_eligible_for_credit = ticariDetails.is_eligible_for_credit;
+                  enhancedListing.ticari_type = ticariDetails.ticari_type;
                 }
               } else if (listing.property_type === 'arsa' && detailData.arsa_details && detailData.arsa_details.length > 0) {
                 const arsaDetails = detailData.arsa_details[0];
                 if (arsaDetails) {
                   enhancedListing.area = arsaDetails.sqm || undefined;
+                  // Map additional attributes for filtering
+                  enhancedListing.arsa_type = arsaDetails.arsa_type;
+                  enhancedListing.allows_trade = arsaDetails.allows_trade;
+                  enhancedListing.is_eligible_for_credit = arsaDetails.is_eligible_for_credit;
                 }
               }
+
+              // Attach detail arrays for later filters (konut, ticari, arsa)
+              // @ts-ignore – extend listing with detail arrays for filtering needs
+              enhancedListing.konut_details = detailData.konut_details;
+              // @ts-ignore
+              enhancedListing.ticari_details = detailData.ticari_details;
+              // @ts-ignore
+              enhancedListing.arsa_details = detailData.arsa_details;
               
               return enhancedListing;
             } catch (error) {
@@ -373,7 +417,7 @@ function EmlakListingsContent() {
     
     // Apply remaining filters if no search query
     applyRemainingFilters(filtered);
-  }, [listings, minPrice, maxPrice, minArea, maxArea, listingStatus, district, neighborhood, roomCount, konutType, ticariType, arsaType, kaks, heatingType, hasBalcony, hasElevator, isFurnished, allowsTrade, isEligibleForCredit, propertyType, mainCategory, sortOption, searchQuery]);
+  }, [listings, minPrice, maxPrice, minArea, maxArea, listingStatus, province, district, neighborhood, roomCount, konutType, ticariType, arsaType, kaks, heatingType, hasBalcony, hasElevator, isFurnished, allowsTrade, isEligibleForCredit, propertyType, mainCategory, sortOption, searchQuery]);
   
   // Helper function to apply the remaining filters
   const applyRemainingFilters = (filtered: Listing[]) => {
@@ -484,6 +528,13 @@ function EmlakListingsContent() {
       filtered = filtered.filter(listing => listing.is_eligible_for_credit === isEligibleForCreditBool);
     }
     
+    // Filter by province
+    if (province) {
+      filtered = filtered.filter(listing => 
+        listing.province && listing.province.toLowerCase() === province.toLowerCase()
+      );
+    }
+    
     // Apply sorting
     switch (sortOption) {
       case 'newest':
@@ -538,13 +589,14 @@ function EmlakListingsContent() {
     return cat === propertyType ? '#' : `/ilanlar/${cat}`;
   };
   
-  // Initial filter values for CategoryFilter component
+  // Update initialFilters to include province parameter
   const initialFilters = {
     minPrice,
     maxPrice,
     minArea,
     maxArea,
     listingStatus,
+    province,
     district,
     neighborhood,
     roomCount,

@@ -18,12 +18,29 @@ const ImageGallery = ({
   images, 
   title 
 }: { 
-  images: Array<{id: string, url: string}>, 
+  images: Array<{id: string, url: string, order_index?: number, is_cover?: boolean}>, 
   title: string 
 }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  
+  // Sort images by order_index and/or is_cover flag
+  const sortedImages = React.useMemo(() => {
+    // Create a copy of the array to avoid mutating props
+    return [...images].sort((a, b) => {
+      // First check if order_index exists and use it for sorting
+      if (typeof a.order_index === 'number' && typeof b.order_index === 'number') {
+        return a.order_index - b.order_index;
+      }
+      
+      // If order_index doesn't exist, prioritize cover image
+      if (a.is_cover) return -1;
+      if (b.is_cover) return 1;
+      
+      return 0;
+    });
+  }, [images]);
   
   // Reset loading state when image changes
   useEffect(() => {
@@ -34,13 +51,13 @@ const ImageGallery = ({
   const nextImage = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev + 1) % images.length);
+    setCurrentImageIndex((prev) => (prev + 1) % sortedImages.length);
   };
   
   const prevImage = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+    setCurrentImageIndex((prev) => (prev - 1 + sortedImages.length) % sortedImages.length);
   };
   
   // Add cache-busting for Cloudinary URLs
@@ -66,7 +83,7 @@ const ImageGallery = ({
       )}
       
       <Image
-        src={images[currentImageIndex]?.url ? addCacheBuster(images[currentImageIndex].url) : "/images/ce.png"}
+        src={sortedImages[currentImageIndex]?.url ? addCacheBuster(sortedImages[currentImageIndex].url) : "/images/ce.png"}
         alt={title}
         className={`object-cover rounded-lg transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
         fill
@@ -74,13 +91,13 @@ const ImageGallery = ({
         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 40vw, 33vw"
         onLoad={() => setImageLoaded(true)}
         onError={() => {
-          console.error(`Failed to load image: ${images[currentImageIndex]?.url}`);
+          console.error(`Failed to load image: ${sortedImages[currentImageIndex]?.url}`);
           setImageError(true);
         }}
         priority={currentImageIndex === 0} // Prioritize loading the first image
       />
       
-      {images.length > 1 && (
+      {sortedImages.length > 1 && (
         <>
           {/* Left arrow */}
           <button 
@@ -102,7 +119,7 @@ const ImageGallery = ({
           
           {/* Image counter */}
           <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            {currentImageIndex + 1}/{images.length}
+            {currentImageIndex + 1}/{sortedImages.length}
           </div>
         </>
       )}
@@ -216,6 +233,9 @@ function CategoryListingsContent() {
   const transmission = searchParams.get('transmission') || "";
   const minKm = searchParams.get('minKm') || "";
   const maxKm = searchParams.get('maxKm') || "";
+  
+  // Add province to the filter states
+  const province = searchParams.get('province') || "";
   
   // Yeni eklenen filtreler
   const heatingType = searchParams.get('heatingType') || "";
@@ -354,6 +374,16 @@ function CategoryListingsContent() {
                   enhancedListing.year = vasitaDetails.year ? vasitaDetails.year.toString() : 'Belirtilmemiş';
                 }
               }
+
+              // Attach full detail arrays for later filters
+              // @ts-ignore – we purposefully attach these arrays for filtering even if not on the Listing type
+              enhancedListing.konut_details = detailData.konut_details;
+              // @ts-ignore
+              enhancedListing.ticari_details = detailData.ticari_details;
+              // @ts-ignore
+              enhancedListing.arsa_details = detailData.arsa_details;
+              // @ts-ignore
+              enhancedListing.vasita_details = detailData.vasita_details;
               
               return enhancedListing;
             } catch (error) {
@@ -646,6 +676,13 @@ function CategoryListingsContent() {
       });
     }
     
+    // Filter by province
+    if (province) {
+      filtered = filtered.filter(listing => 
+        listing.province && listing.province.toLowerCase() === province.toLowerCase()
+      );
+    }
+    
     // Apply sorting
     switch (sortOption) {
       case 'newest':
@@ -683,7 +720,7 @@ function CategoryListingsContent() {
     }
     
     setFilteredListings(filtered);
-  }, [listings, minPrice, maxPrice, minArea, maxArea, listingStatus, district, neighborhood, roomCount, konutType, category, sortOption, brand, model, minYear, maxYear, fuelType, transmission, minKm, maxKm, heatingType, hasBalcony, hasElevator, isFurnished, allowsTrade, isEligibleForCredit, ticariType, arsaType, kaks, color, hasWarranty, hasDamageRecord]);
+  }, [listings, minPrice, maxPrice, minArea, maxArea, listingStatus, district, neighborhood, roomCount, konutType, category, sortOption, brand, model, minYear, maxYear, fuelType, transmission, minKm, maxKm, heatingType, hasBalcony, hasElevator, isFurnished, allowsTrade, isEligibleForCredit, ticariType, arsaType, kaks, color, hasWarranty, hasDamageRecord, province]);
   
   // Apply filters when filter states change or listings change
   useEffect(() => {
@@ -729,13 +766,14 @@ function CategoryListingsContent() {
     return '';
   };
   
-  // Initial filter values for CategoryFilter component
+  // Update initialFilters to include province parameter
   const initialFilters = {
     minPrice,
     maxPrice,
     minArea,
     maxArea,
     listingStatus,
+    province,
     district,
     neighborhood,
     roomCount,
