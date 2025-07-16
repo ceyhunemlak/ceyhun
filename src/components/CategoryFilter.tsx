@@ -72,7 +72,8 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
   const [saleStatus, setSaleStatus] = useState(initialFilters.listingStatus ? (initialFilters.listingStatus === "kiralik" ? "rent" : "sale") : "");
   
   // Location states
-  const [selectedProvince, setSelectedProvince] = useState(initialFilters.province || "tokat");
+  // Province state now defaults to 'all' which represents 'Tümü'
+  const [selectedProvince, setSelectedProvince] = useState(initialFilters.province || "all");
   const [selectedDistrict, setSelectedDistrict] = useState(initialFilters.district || "");
   const [selectedNeighborhood, setSelectedNeighborhood] = useState(initialFilters.neighborhood || "");
   const [provinces, setProvinces] = useState<string[]>(['tokat']);
@@ -84,6 +85,9 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
   
   // For dynamic filter display in emlak category
   const [selectedSubCategory, setSelectedSubCategory] = useState(initialFilters.mainCategory || "all");
+  // Detect if we are on the generic “emlak” listings page. In that case we need to
+  // show *all* sub-category filters together and skip the sub-category selector.
+  const isEmlak = category === "emlak";
   
   // Konut specific filters
   const [roomCount, setRoomCount] = useState(initialFilters.roomCount || "all");
@@ -150,7 +154,10 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
 
   // Update districts when province changes
   useEffect(() => {
-    if (!locationsData || !selectedProvince) return;
+    if (!locationsData || !selectedProvince || selectedProvince === 'all') {
+      setDistricts([]);
+      return;
+    }
     
     const province = selectedProvince.toLowerCase();
     
@@ -307,6 +314,58 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
     // Ana kategori filtresi (emlak sayfası için)
     if (category === 'emlak' && selectedSubCategory && selectedSubCategory !== 'all') {
       params.append('mainCategory', selectedSubCategory);
+    }
+
+    // When on the generic emlak page include every sub-category filter that has a value.
+    if (isEmlak) {
+      // 1) Alt kategoriye ait filtre parametrelerini ekle
+      if (roomCount && roomCount !== 'all') params.append('roomCount', roomCount);
+      if (konutType && konutType !== 'all') params.append('konutType', konutType);
+      if (heatingType && heatingType !== 'all') params.append('heatingType', heatingType);
+      if (hasBalcony === 'true') params.append('hasBalcony', hasBalcony);
+      if (hasElevator === 'true') params.append('hasElevator', hasElevator);
+      if (isFurnished === 'true') params.append('isFurnished', isFurnished);
+
+      if (ticariType && ticariType !== 'all') params.append('ticariType', ticariType);
+
+      if (arsaType && arsaType !== 'all') params.append('arsaType', arsaType);
+      if (kaks) params.append('kaks', kaks);
+
+      if (allowsTrade === 'true') params.append('allowsTrade', allowsTrade);
+      if (isEligibleForCredit === 'true') params.append('isEligibleForCredit', isEligibleForCredit);
+
+      // 2) Seçilen filtrelere göre hangi ana kategoriye odaklanıldığını tespit et
+      let detectedCategory: 'konut' | 'ticari' | 'arsa' | 'all' = 'all';
+
+      // Konut ile ilgili herhangi bir değer seçiliyse
+      if (
+        (roomCount && roomCount !== 'all') ||
+        (konutType && konutType !== 'all') ||
+        (heatingType && heatingType !== 'all') ||
+        hasBalcony === 'true' ||
+        hasElevator === 'true' ||
+        isFurnished === 'true'
+      ) {
+        detectedCategory = 'konut';
+      }
+
+      // Ticari filtreleri konuttan sonra kontrol et (ticariType en belirgin kriter)
+      if (detectedCategory === 'all' && ticariType && ticariType !== 'all') {
+        detectedCategory = 'ticari';
+      }
+
+      // Arsa filtreleri
+      if (
+        detectedCategory === 'all' &&
+        ((arsaType && arsaType !== 'all') || kaks)
+      ) {
+        detectedCategory = 'arsa';
+      }
+
+      // Belirlenen kategori "all" değilse parametreye ekle
+      if (detectedCategory !== 'all') {
+        params.append('mainCategory', detectedCategory);
+      }
     }
 
     // Konut specific filters
@@ -468,7 +527,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
     // Don't apply filters on initial render
     const isInitialRender = 
       (saleStatus === (initialFilters.listingStatus ? (initialFilters.listingStatus === "kiralik" ? "rent" : "sale") : "")) &&
-      (selectedProvince === (initialFilters.province || "tokat")) &&
+      (selectedProvince === (initialFilters.province || "all")) &&
       (selectedDistrict === (initialFilters.district || "")) &&
       (selectedNeighborhood === (initialFilters.neighborhood || "")) &&
       (mainCategory === (initialFilters.mainCategory || "all")) &&
@@ -547,7 +606,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
     setMinArea("");
     setMaxArea("");
     setSaleStatus("");
-    setSelectedProvince("tokat"); // Reset province to Tokat
+    setSelectedProvince("all"); // Reset province to 'Tümü'
     setSelectedDistrict("");
     setSelectedNeighborhood("");
     setMainCategory("all");
@@ -593,8 +652,95 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
       <h3 className="font-headings text-lg font-semibold mb-5 border-b pb-3">Filtrele</h3>
       
       <div className="space-y-5">
-        {/* Ana Kategori - Only for Emlak */}
-        {category === 'emlak' && (
+        {/* Location Filters – moved to top */}
+        <div>
+          <Label className="text-sm font-medium block mb-2">İl</Label>
+          <Select value={selectedProvince} onValueChange={handleProvinceChange}>
+            <SelectTrigger className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary">
+              <SelectValue placeholder="İl" />
+            </SelectTrigger>
+            <SelectContent sideOffset={4} className="rounded-xl border border-gray-200 max-h-[200px] overflow-y-auto">
+              <SelectItem value="all">Tümü</SelectItem>
+              {provinces.map((province) => (
+                <SelectItem key={province.toLowerCase()} value={province.toLowerCase()}>
+                  {province}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {selectedProvince && (
+          <div>
+            <Label className="text-sm font-medium block mb-2">İlçe</Label>
+            <Select value={selectedDistrict} onValueChange={setSelectedDistrict}>
+              <SelectTrigger className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary">
+                <SelectValue placeholder="İlçe Seçin" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[200px] overflow-y-auto">
+                <SelectItem value="all">Tümü</SelectItem>
+                {districts.map((district) => (
+                  <SelectItem key={district.toLowerCase()} value={district.toLowerCase()}>
+                    {district}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {selectedDistrict && selectedDistrict !== 'all' && (
+          <div>
+            <Label className="text-sm font-medium block mb-2">Mahalle/Köy</Label>
+            <Select value={selectedNeighborhood} onValueChange={setSelectedNeighborhood}>
+              <SelectTrigger className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary">
+                <SelectValue placeholder="Mahalle/Köy Seçin" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[200px] sm:max-h-[250px] md:max-h-[300px]">
+                <SelectItem value="all">Tümü</SelectItem>
+                {selectedProvince === 'tokat' ? (
+                  (() => {
+                    const neighborhoods = neighborhoodsByDistrict as Record<string, { mahalle: Neighborhood[]; koy: Neighborhood[] }>;
+                    const districtData = neighborhoods[selectedDistrict.toLowerCase()];
+                    return (
+                      <> 
+                        {districtData?.mahalle && districtData.mahalle.length > 0 && (
+                          <>
+                            <div className="px-2 py-1.5 text-sm font-semibold bg-yellow-100 text-yellow-800">Mahalleler</div>
+                            {districtData.mahalle.map((neighborhood: Neighborhood) => (
+                              <SelectItem key={neighborhood.value} value={neighborhood.value}>
+                                {formatLabel(neighborhood.label)}
+                              </SelectItem>
+                            ))}
+                          </>
+                        )}
+                        {districtData?.koy && districtData.koy.length > 0 && (
+                          <>
+                            <div className="px-2 py-1.5 text-sm font-semibold bg-yellow-100 text-yellow-800 mt-1">Köyler</div>
+                            {districtData.koy.map((koy: Neighborhood) => (
+                              <SelectItem key={koy.value} value={koy.value}>
+                                {formatLabel(koy.label)}
+                              </SelectItem>
+                            ))}
+                          </>
+                        )}
+                      </>
+                    );
+                  })()
+                ) : (
+                  neighborhoods.map((neighborhood) => (
+                    <SelectItem key={neighborhood} value={neighborhood}>
+                      {formatLabel(neighborhood)}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        
+        {/* Ana Kategori – hidden on the main Emlak page (all filters will be shown together) */}
+        {false && (
           <div>
             <Label className="text-sm font-medium block mb-2">Kategori</Label>
             <Select 
@@ -691,7 +837,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
         )}
         
         {/* Room Count - Only for Konut and Ticari */}
-        {(category === 'konut' || category === 'ticari' || (category === 'emlak' && (selectedSubCategory === 'konut' || selectedSubCategory === 'ticari'))) && (
+        {(category === 'konut' || category === 'ticari' || isEmlak) && (
           <div>
             <Label className="text-sm font-medium block mb-2">Oda Sayısı</Label>
             <Select value={roomCount} onValueChange={setRoomCount}>
@@ -700,14 +846,21 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tümü</SelectItem>
-                {(category === 'konut' || (category === 'emlak' && selectedSubCategory === 'konut')) ? (
+                {(category === 'konut' || isEmlak) ? (
                   <>
                     <SelectItem value="1+0">1+0</SelectItem>
                     <SelectItem value="1+1">1+1</SelectItem>
+                    <SelectItem value="1+1.5">1+1.5</SelectItem>
                     <SelectItem value="2+1">2+1</SelectItem>
                     <SelectItem value="3+1">3+1</SelectItem>
                     <SelectItem value="4+1">4+1</SelectItem>
                     <SelectItem value="5+1">5+1</SelectItem>
+                    <SelectItem value="5+2">5+2</SelectItem>
+                    <SelectItem value="6+1">6+1</SelectItem>
+                    <SelectItem value="6+2">6+2</SelectItem>
+                    <SelectItem value="7+1">7+1</SelectItem>
+                    <SelectItem value="7+2">7+2</SelectItem>
+                    <SelectItem value="8+1">8+1</SelectItem>
                   </>
                 ) : (
                   <>
@@ -715,7 +868,12 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
                     <SelectItem value="2">2</SelectItem>
                     <SelectItem value="3">3</SelectItem>
                     <SelectItem value="4">4</SelectItem>
-                    <SelectItem value="5">5+</SelectItem>
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="6">6</SelectItem>
+                    <SelectItem value="7">7</SelectItem>
+                    <SelectItem value="8">8</SelectItem>
+                    <SelectItem value="9">9</SelectItem>
+                    <SelectItem value="10+">10+</SelectItem>
                   </>
                 )}
               </SelectContent>
@@ -724,7 +882,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
         )}
         
         {/* Konut Type - Only for Konut */}
-        {(category === 'konut' || (category === 'emlak' && selectedSubCategory === 'konut')) && (
+        {(category === 'konut' || isEmlak) && (
           <div>
             <Label className="text-sm font-medium block mb-2">Konut Tipi</Label>
             <Select value={konutType} onValueChange={setKonutType}>
@@ -743,7 +901,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
         )}
         
         {/* Heating Type - For Konut and Ticari */}
-        {(category === 'konut' || category === 'ticari' || (category === 'emlak' && (selectedSubCategory === 'konut' || selectedSubCategory === 'ticari'))) && (
+        {(category === 'konut' || category === 'ticari' || isEmlak) && (
           <div>
             <Label className="text-sm font-medium block mb-2">Isıtma Tipi</Label>
             <Select value={heatingType} onValueChange={setHeatingType}>
@@ -762,54 +920,8 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
           </div>
         )}
         
-        {/* Additional Konut Features */}
-        {(category === 'konut' || (category === 'emlak' && selectedSubCategory === 'konut')) && (
-          <>
-            <div>
-              <Label className="text-sm font-medium block mb-2">Özellikler</Label>
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
-                     onClick={() => setHasBalcony(hasBalcony === 'true' ? 'false' : 'true')}>
-                  <div className="flex items-center justify-center">
-                    <div className={`w-5 h-5 rounded border flex items-center justify-center ${hasBalcony === 'true' ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
-                      {hasBalcony === 'true' && <Check className="h-3 w-3 text-white stroke-[3]" />}
-                    </div>
-                  </div>
-                  <Label className="font-medium cursor-pointer flex-1">
-                    Balkon
-                  </Label>
-                </div>
-                
-                <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
-                     onClick={() => setHasElevator(hasElevator === 'true' ? 'false' : 'true')}>
-                  <div className="flex items-center justify-center">
-                    <div className={`w-5 h-5 rounded border flex items-center justify-center ${hasElevator === 'true' ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
-                      {hasElevator === 'true' && <Check className="h-3 w-3 text-white stroke-[3]" />}
-                    </div>
-                  </div>
-                  <Label className="font-medium cursor-pointer flex-1">
-                    Asansör
-                  </Label>
-                </div>
-                
-                <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
-                     onClick={() => setIsFurnished(isFurnished === 'true' ? 'false' : 'true')}>
-                  <div className="flex items-center justify-center">
-                    <div className={`w-5 h-5 rounded border flex items-center justify-center ${isFurnished === 'true' ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
-                      {isFurnished === 'true' && <Check className="h-3 w-3 text-white stroke-[3]" />}
-                    </div>
-                  </div>
-                  <Label className="font-medium cursor-pointer flex-1">
-                    Eşyalı
-                  </Label>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-        
         {/* Ticari Type - Only for Ticari */}
-        {(category === 'ticari' || (category === 'emlak' && selectedSubCategory === 'ticari')) && (
+        {(category === 'ticari' || isEmlak) && (
           <div>
             <Label className="text-sm font-medium block mb-2">İşyeri Tipi</Label>
             <Select value={ticariType} onValueChange={setTicariType}>
@@ -836,7 +948,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
         )}
         
         {/* Arsa Type - Only for Arsa */}
-        {(category === 'arsa' || (category === 'emlak' && selectedSubCategory === 'arsa')) && (
+        {(category === 'arsa' || isEmlak) && (
           <>
             <div>
               <Label className="text-sm font-medium block mb-2">Arsa Tipi</Label>
@@ -1042,9 +1154,52 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
           </>
         )}
         
+        {/* Additional Konut Features – moved here */}
+        {(category === 'konut' || isEmlak) && (
+          <div>
+            <Label className="text-sm font-medium block mb-2">Özellikler</Label>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                   onClick={() => setHasBalcony(hasBalcony === 'true' ? 'false' : 'true')}>
+                <div className="flex items-center justify-center">
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center ${hasBalcony === 'true' ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
+                    {hasBalcony === 'true' && <Check className="h-3 w-3 text-white stroke-[3]" />}
+                  </div>
+                </div>
+                <Label className="font-medium cursor-pointer flex-1">
+                  Balkon
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                   onClick={() => setHasElevator(hasElevator === 'true' ? 'false' : 'true')}>
+                <div className="flex items-center justify-center">
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center ${hasElevator === 'true' ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
+                    {hasElevator === 'true' && <Check className="h-3 w-3 text-white stroke-[3]" />}
+                  </div>
+                </div>
+                <Label className="font-medium cursor-pointer flex-1">
+                  Asansör
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                   onClick={() => setIsFurnished(isFurnished === 'true' ? 'false' : 'true')}>
+                <div className="flex items-center justify-center">
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center ${isFurnished === 'true' ? 'bg-[#FFB000] border-[#FFB000]' : 'border-gray-300'}`}>
+                    {isFurnished === 'true' && <Check className="h-3 w-3 text-white stroke-[3]" />}
+                  </div>
+                </div>
+                <Label className="font-medium cursor-pointer flex-1">
+                  Eşyalı
+                </Label>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {/* Common Features for Konut, Ticari, Arsa */}
-        {(category === 'konut' || category === 'ticari' || category === 'arsa' || 
-          (category === 'emlak' && (selectedSubCategory === 'konut' || selectedSubCategory === 'ticari' || selectedSubCategory === 'arsa'))) && (
+        {(category === 'konut' || category === 'ticari' || category === 'arsa' || isEmlak) && (
           <div>
             <Label className="text-sm font-medium block mb-2">Diğer Özellikler</Label>
             <div className="space-y-2">
@@ -1060,8 +1215,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
                 </Label>
               </div>
               
-              {(category === 'konut' || category === 'ticari' || category === 'arsa' || 
-                (category === 'emlak' && (selectedSubCategory === 'konut' || selectedSubCategory === 'ticari' || selectedSubCategory === 'arsa'))) && (
+              {(category === 'konut' || category === 'ticari' || category === 'arsa' || isEmlak) && (
                 <div className="flex items-center space-x-2 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
                      onClick={() => setIsEligibleForCredit(isEligibleForCredit === 'true' ? 'false' : 'true')}>
                   <div className="flex items-center justify-center">
@@ -1075,100 +1229,6 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
                 </div>
               )}
             </div>
-          </div>
-        )}
-        
-        {/* Location Filters */}
-        <div>
-          <Label className="text-sm font-medium block mb-2">İl</Label>
-          <Select value={selectedProvince} onValueChange={handleProvinceChange}>
-            <SelectTrigger className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary">
-              <SelectValue placeholder="İl Seçin" />
-            </SelectTrigger>
-            <SelectContent className="max-h-[200px] overflow-y-auto">
-              {provinces.map((province) => (
-                <SelectItem key={province.toLowerCase()} value={province.toLowerCase()}>
-                  {province}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        
-        {selectedProvince && (
-          <div>
-            <Label className="text-sm font-medium block mb-2">İlçe</Label>
-            <Select value={selectedDistrict} onValueChange={setSelectedDistrict}>
-              <SelectTrigger className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary">
-                <SelectValue placeholder="İlçe Seçin" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[200px] overflow-y-auto">
-                <SelectItem value="all">Tümü</SelectItem>
-                {districts.map((district) => (
-                  <SelectItem key={district.toLowerCase()} value={district.toLowerCase()}>
-                    {district}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-        
-        {selectedDistrict && selectedDistrict !== 'all' && (
-          <div>
-            <Label className="text-sm font-medium block mb-2">Mahalle/Köy</Label>
-            <Select value={selectedNeighborhood} onValueChange={setSelectedNeighborhood}>
-              <SelectTrigger className="px-3 py-2 border border-gray-200 rounded-md text-sm w-full focus:border-primary focus:ring-1 focus:ring-primary">
-                <SelectValue placeholder="Mahalle/Köy Seçin" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[200px] sm:max-h-[250px] md:max-h-[300px]">
-                <SelectItem value="all">Tümü</SelectItem>
-                {selectedProvince === 'tokat' ? (
-                  // For Tokat, use the static data with mahalle/köy separation
-                  <>
-                    {(() => {
-                      // TypeScript için neighborhoodsByDistrict tipini belirtiyoruz
-                      const neighborhoods = neighborhoodsByDistrict as Record<string, { mahalle: Neighborhood[], koy: Neighborhood[] }>;
-                      const districtData = neighborhoods[selectedDistrict.toLowerCase()];
-                      
-                      return (
-                        <>
-                          {districtData?.mahalle && districtData.mahalle.length > 0 && (
-                            <>
-                              <div className="px-2 py-1.5 text-sm font-semibold bg-yellow-100 text-yellow-800">Mahalleler</div>
-                              {districtData.mahalle.map((neighborhood: Neighborhood) => (
-                                <SelectItem key={neighborhood.value} value={neighborhood.value}>
-                                  {formatLabel(neighborhood.label)}
-                                </SelectItem>
-                              ))}
-                            </>
-                          )}
-                          
-                          {/* Köy başlığı ve listesi */}
-                          {districtData?.koy && districtData.koy.length > 0 && (
-                            <>
-                              <div className="px-2 py-1.5 text-sm font-semibold bg-yellow-100 text-yellow-800 mt-1">Köyler</div>
-                              {districtData.koy.map((koy: Neighborhood) => (
-                                <SelectItem key={koy.value} value={koy.value}>
-                                  {formatLabel(koy.label)}
-                                </SelectItem>
-                              ))}
-                            </>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </>
-                ) : (
-                  // For other provinces, use the dynamic data
-                  neighborhoods.map((neighborhood) => (
-                    <SelectItem key={neighborhood} value={neighborhood}>
-                      {formatLabel(neighborhood)}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
           </div>
         )}
         

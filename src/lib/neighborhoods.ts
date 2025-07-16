@@ -952,7 +952,7 @@ const neighborhoodsByDistrict = {
       },
       {
         "value": "buyuk-beybagi",
-        "label": "Büyük Beybaği"
+        "label": "Büyük Beybağı"
       },
       {
         "value": "camiikebir",

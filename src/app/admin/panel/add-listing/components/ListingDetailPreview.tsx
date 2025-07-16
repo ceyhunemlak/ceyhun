@@ -8,6 +8,7 @@ import { FreeMode, Navigation } from "swiper/modules";
 import 'swiper/css';
 import 'swiper/css/free-mode';
 import 'swiper/css/navigation';
+import { formatLocationFromAddress } from "@/lib/utils";
 
 interface ListingDetailPreviewProps {
   formData: any;

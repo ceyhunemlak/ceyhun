@@ -8,10 +8,10 @@ import FilterArea from "@/components/FilterArea";
 import Image from "next/image";
 import Link from "next/link";
 import { MapPin, Bed, Expand, Car, ArrowRight, Filter, X, Grid, List, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { createSlug, formatLocationFromAddress } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Loading } from "@/components/ui/loading";
-import { createSlug } from "@/lib/utils";
 
 // Image Gallery Component
 const ImageGallery = ({ 
@@ -202,6 +202,22 @@ function AllListingsContent() {
     return typeMap[type] || type;
   };
 
+  // Helper to prettify subcategory / konut_type values
+  const formatSubcategoryName = (raw: string) => {
+    const map: Record<string, string> = {
+      'mustakil_ev': 'Müstaki Ev',
+      'otobus_hatti': 'Otobüs Hattı',
+      'taksi_hatti': 'Taksi Hattı',
+    };
+    if (!raw) return '';
+    const lowered = raw.toLowerCase();
+    if (map[lowered]) return map[lowered];
+    return raw
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
   // Helper function to format listing status
   const formatListingStatus = (status: string) => {
     return status === 'satilik' ? 'Satılık' : 'Kiralık';
@@ -215,22 +231,9 @@ function AllListingsContent() {
   // Function to format location
   const formatLocation = (listing: any) => {
     if (listing.addresses && listing.addresses.length > 0) {
-      const address = listing.addresses[0];
-      // Capitalize first letter of each part
-      const province = address.province.charAt(0).toUpperCase() + address.province.slice(1);
-      const district = address.district.charAt(0).toUpperCase() + address.district.slice(1);
-      const neighborhood = address.neighborhood 
-        ? '/' + (address.neighborhood.charAt(0).toUpperCase() + address.neighborhood.slice(1)) 
-        : '';
-      return `${province}/${district}${neighborhood}`;
+      return formatLocationFromAddress(listing.addresses[0]);
     }
-    // If using location string directly, capitalize each part
-    if (listing.location) {
-      return listing.location.split('/').map(
-        (part: string) => part.charAt(0).toUpperCase() + part.slice(1)
-      ).join('/');
-    }
-    return '';
+    return listing.location || '';
   };
   
   // Fetch listings
@@ -271,13 +274,7 @@ function AllListingsContent() {
               // Extract location from addresses if available
               if (detailData.addresses && detailData.addresses.length > 0) {
                 const address = detailData.addresses[0];
-                // Capitalize first letter of each part
-                const province = address.province.charAt(0).toUpperCase() + address.province.slice(1);
-                const district = address.district.charAt(0).toUpperCase() + address.district.slice(1);
-                const neighborhood = address.neighborhood 
-                  ? '/' + (address.neighborhood.charAt(0).toUpperCase() + address.neighborhood.slice(1)) 
-                  : '';
-                enhancedListing.location = `${province}/${district}${neighborhood}`;
+                enhancedListing.location = formatLocationFromAddress(address);
                 enhancedListing.district = address.district;
                 enhancedListing.neighborhood = address.neighborhood;
                 enhancedListing.province = address.province;
@@ -287,8 +284,11 @@ function AllListingsContent() {
               if (listing.property_type === 'konut' && detailData.konut_details && detailData.konut_details.length > 0) {
                 const konutDetails = detailData.konut_details[0];
                 if (konutDetails) {
-                  enhancedListing.rooms = konutDetails.room_count || 'Belirtilmemiş';
-                  enhancedListing.area = konutDetails.gross_sqm || konutDetails.net_sqm || undefined;
+                  const isPrefabrik = (konutDetails.konut_type ?? '').toLowerCase() === 'prefabrik';
+                  if (!isPrefabrik) {
+                    enhancedListing.rooms = konutDetails.room_count || 'Belirtilmemiş';
+                    enhancedListing.area = konutDetails.gross_sqm || konutDetails.net_sqm || undefined;
+                  }
                   enhancedListing.konut_type = konutDetails.konut_type || 'Belirtilmemiş';
                 }
               } else if (listing.property_type === 'ticari' && detailData.ticari_details && detailData.ticari_details.length > 0) {
@@ -734,7 +734,7 @@ function AllListingsContent() {
                             <div className="bg-white/90 backdrop-blur-sm text-gray-800 text-xs font-medium px-3 py-1 rounded-full shadow-md z-10">
                               {listing.property_type === 'vasita' && listing.model ? 
                                 listing.model.split(' ')[0].charAt(0).toUpperCase() + listing.model.split(' ')[0].slice(1) : 
-                                (listing.konut_type || listing.subcategory || formatPropertyType(listing.property_type || '')).charAt(0).toUpperCase() + (listing.konut_type || listing.subcategory || formatPropertyType(listing.property_type || '')).slice(1)}
+                                formatSubcategoryName(listing.konut_type || listing.subcategory || formatPropertyType(listing.property_type || ''))}
                             </div>
                           </div>
                           
@@ -789,7 +789,7 @@ function AllListingsContent() {
                                 </>
                               ) : (
                                 <>
-                                  {listing.rooms && listing.rooms !== 'undefined' && (
+                                  {listing.rooms && listing.rooms !== 'undefined' && listing.rooms !== 'Belirtilmemiş' && listing.rooms !== '0' && (
                                     <div className="flex items-center">
                                       <Bed size={14} className="mr-1.5 flex-shrink-0 text-primary" />
                                       <span>{listing.rooms}</span>

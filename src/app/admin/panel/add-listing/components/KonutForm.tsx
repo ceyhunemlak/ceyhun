@@ -74,8 +74,8 @@ export default function KonutForm({ formData, updateFormData, listingType, prope
   const isFieldInvalid = (field: string): boolean => {
     if (!touched[field]) return false;
     
-    // For prefabrik, only validate title, description and price
-    if (propertyType === "prefabrik") {
+    // For Prefabrik, only validate title, description and price
+if (propertyType === "Prefabrik") {
       switch (field) {
         case "title":
           return !form.title;
@@ -223,7 +223,7 @@ export default function KonutForm({ formData, updateFormData, listingType, prope
       </div>
 
       {/* Price */}
-      <div className={propertyType === "prefabrik" ? "grid grid-cols-1 gap-4" : "grid grid-cols-1 md:grid-cols-3 gap-4"}>
+      <div className={propertyType === "Prefabrik" ? "grid grid-cols-1 gap-4" : "grid grid-cols-1 md:grid-cols-3 gap-4"}>
         <div>
           <Label htmlFor="price" className="text-base font-medium flex items-center">
             Fiyat (₺) <span className="text-red-500 ml-1">*</span>
@@ -248,7 +248,7 @@ export default function KonutForm({ formData, updateFormData, listingType, prope
           )}
         </div>
 
-        {propertyType !== "prefabrik" && (
+        {propertyType !== "Prefabrik" && (
           <>
             <div>
               <Label htmlFor="grossArea" className="text-base font-medium flex items-center">
@@ -291,8 +291,8 @@ export default function KonutForm({ formData, updateFormData, listingType, prope
         )}
       </div>
 
-      {/* Only show these fields if not prefabrik */}
-      {propertyType !== "prefabrik" && (
+      {/* Only show these fields if not Prefabrik */}
+      {propertyType !== "Prefabrik" && (
         <>
           {/* Room Count, Building Age, Floor */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

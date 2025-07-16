@@ -496,7 +496,11 @@ export async function GET(request: NextRequest) {
         .from('listings')
         .select(`
           *,
-          images(url, is_cover)
+          images(url, is_cover),
+          konut_details(konut_type),
+          ticari_details(ticari_type),
+          arsa_details(arsa_type),
+          vasita_details(vasita_type)
         `);
         
       // Admin panelinden yapılan isteklerde tüm ilanları göster
@@ -522,10 +526,42 @@ export async function GET(request: NextRequest) {
         // Or use the first image if no cover is marked
         const firstImage = listing.images?.[0];
         
+        // Get subcategory based on property type
+        let sub_category = null;
+        if (listing.property_type === 'konut' && listing.konut_details?.length > 0) {
+          sub_category = listing.konut_details[0].konut_type;
+        } else if (listing.property_type === 'ticari' && listing.ticari_details?.length > 0) {
+          sub_category = listing.ticari_details[0].ticari_type;
+        } else if (listing.property_type === 'arsa' && listing.arsa_details?.length > 0) {
+          sub_category = listing.arsa_details[0].arsa_type;
+        } else if (listing.property_type === 'vasita' && listing.vasita_details?.length > 0) {
+          sub_category = listing.vasita_details[0].vasita_type;
+        }
+        
+        // Format subcategory for display
+        let formatted_sub_category = null;
+        if (sub_category) {
+          // Capitalize and replace underscores with spaces
+          formatted_sub_category = sub_category.charAt(0).toUpperCase() + 
+            sub_category.slice(1).replace(/_/g, ' ');
+          
+          // Special case handling
+          if (sub_category === 'mustakil_ev') formatted_sub_category = 'Müstakil Ev';
+          if (sub_category === 'konut_imarli') formatted_sub_category = 'Konut İmarlı';
+          if (sub_category === 'ticari_imarli') formatted_sub_category = 'Ticari İmarlı';
+          if (sub_category === 'otobus_hatti') formatted_sub_category = 'Otobüs Hattı';
+          if (sub_category === 'taksi_hatti') formatted_sub_category = 'Taksi Hattı';
+        }
+        
         return {
           ...listing,
           thumbnail_url: coverImage?.url || firstImage?.url || null,
-          images: undefined // Remove the images array to keep response clean
+          sub_category: formatted_sub_category,
+          images: undefined, // Remove the images array to keep response clean
+          konut_details: undefined, // Remove details to keep response clean
+          ticari_details: undefined,
+          arsa_details: undefined,
+          vasita_details: undefined
         };
       });
       

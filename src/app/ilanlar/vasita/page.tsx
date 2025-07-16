@@ -10,7 +10,7 @@ import { MapPin, Car, Calendar, ArrowRight, Filter, X, ChevronLeft, ChevronRight
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Loading } from "@/components/ui/loading";
-import { createSlug } from "@/lib/utils";
+import { createSlug, formatLocationFromAddress } from "@/lib/utils";
 import CategoryFilter from "@/components/CategoryFilter";
 
 // Image Gallery Component
@@ -203,22 +203,9 @@ function VasitaListingsContent() {
   // Function to format location
   const formatLocation = (listing: any) => {
     if (listing.addresses && listing.addresses.length > 0) {
-      const address = listing.addresses[0];
-      // Capitalize first letter of each part
-      const province = address.province.charAt(0).toUpperCase() + address.province.slice(1);
-      const district = address.district.charAt(0).toUpperCase() + address.district.slice(1);
-      const neighborhood = address.neighborhood 
-        ? '/' + (address.neighborhood.charAt(0).toUpperCase() + address.neighborhood.slice(1)) 
-        : '';
-      return `${province}/${district}${neighborhood}`;
+      return formatLocationFromAddress(listing.addresses[0]);
     }
-    // If using location string directly, capitalize each part
-    if (listing.location) {
-      return listing.location.split('/').map(
-        (part: string) => part.charAt(0).toUpperCase() + part.slice(1)
-      ).join('/');
-    }
-    return '';
+    return listing.location || '';
   };
   
   // Fetch listings
@@ -263,12 +250,7 @@ function VasitaListingsContent() {
               if (detailData.addresses && detailData.addresses.length > 0) {
                 const address = detailData.addresses[0];
                 // Capitalize first letter of each part
-                const province = address.province.charAt(0).toUpperCase() + address.province.slice(1);
-                const district = address.district.charAt(0).toUpperCase() + address.district.slice(1);
-                const neighborhood = address.neighborhood 
-                  ? '/' + (address.neighborhood.charAt(0).toUpperCase() + address.neighborhood.slice(1)) 
-                  : '';
-                enhancedListing.location = `${province}/${district}${neighborhood}`;
+                enhancedListing.location = formatLocationFromAddress(address);
                 enhancedListing.district = address.district;
                 enhancedListing.neighborhood = address.neighborhood;
                 enhancedListing.province = address.province;

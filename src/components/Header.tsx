@@ -79,9 +79,9 @@ const Header = () => {
             <Image
               src="/images/logo_black.png"
               alt="Ceyhun Emlak Logo"
-              width={120}
-              height={40}
-              className="transition-all duration-300 w-[120px] sm:w-[150px] h-auto"
+              width={160}
+              height={50}
+              className="transition-all duration-300 w-[150px] sm:w-[200px] h-auto"
               priority
             />
           </Link>

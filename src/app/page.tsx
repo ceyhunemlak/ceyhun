@@ -60,7 +60,7 @@ export default function Home() {
       id: "konut",
       title: "Konut",
       description: "Daire, villa, müstakil ev, bina ve daha fazlası",
-      image: "/images/ce.png",
+      image: "/images/categories/konut.jpg",
       icon: <HomeIcon className="text-primary" size={28} />,
       count: categoryCountData.konut
     },
@@ -68,7 +68,7 @@ export default function Home() {
       id: "ticari",
       title: "İş Yeri",
       description: "Ofis, mağaza, depo, fabrika ve daha fazlası",
-      image: "/images/ce1.png",
+      image: "/images/categories/isyeri.jpg",
       icon: <Building2 className="text-primary" size={28} />,
       count: categoryCountData.ticari
     },

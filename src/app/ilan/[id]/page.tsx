@@ -15,6 +15,7 @@ import { FreeMode, Navigation } from "swiper/modules";
 import 'swiper/css';
 import 'swiper/css/free-mode';
 import 'swiper/css/navigation';
+import { formatLocationFromAddress } from "@/lib/utils";
 
 // Define listing type
 interface Listing {
@@ -162,14 +163,7 @@ export default function ListingDetail() {
     if (!listing) return '';
     
     if (listing.addresses && listing.addresses.length > 0) {
-      const address = listing.addresses[0];
-      // Capitalize first letter of each part
-      const province = address.province.charAt(0).toUpperCase() + address.province.slice(1);
-      const district = address.district.charAt(0).toUpperCase() + address.district.slice(1);
-      const neighborhood = address.neighborhood 
-        ? '/' + (address.neighborhood.charAt(0).toUpperCase() + address.neighborhood.slice(1)) 
-        : '';
-      return `${province}/${district}${neighborhood}`;
+      return formatLocationFromAddress(listing.addresses[0]);
     }
     
     // Fallback to location field if available
@@ -204,6 +198,10 @@ export default function ListingDetail() {
       
       if (listing.property_type === 'konut' && listing.konut_details && listing.konut_details.length > 0) {
         const konutDetails = listing.konut_details[0];
+        // Prefabrik ilanlarda (konut_type === "Prefabrik") oda sayısı, bina yaşı vb. varsayılan değerler
+        // girilmediği halde 0 veya 1 gibi varsayılanlarla görüntüleniyordu. Bu nedenle Prefabrik için
+        // yalnızca gerçekten girilen bilgileri (örn. konut tipi) gösteriyoruz.
+        const isPrefabrik = (konutDetails.konut_type ?? '').toLowerCase() === 'prefabrik';
         
         // Property type details
         if (konutDetails.konut_type) {
@@ -220,18 +218,22 @@ export default function ListingDetail() {
         if (konutDetails.gross_sqm) areaDetails.push({ label: 'Brüt Alan', value: `${konutDetails.gross_sqm} m²` });
         if (konutDetails.net_sqm) areaDetails.push({ label: 'Net Alan', value: `${konutDetails.net_sqm} m²` });
         
-        // Room details
-        if (konutDetails.room_count) roomDetails.push({ label: 'Oda Sayısı', value: konutDetails.room_count });
+        // Room details – Prefabrik ilanlarda varsayılan "1+0" bilgisini gizle
+        if (!isPrefabrik && konutDetails.room_count) {
+          roomDetails.push({ label: 'Oda Sayısı', value: konutDetails.room_count });
+        }
         
-        // Building details
-        if (konutDetails.building_age !== undefined && konutDetails.building_age !== null && konutDetails.building_age !== '') 
-          buildingDetails.push({ label: 'Bina Yaşı', value: konutDetails.building_age });
-        
-        if (konutDetails.floor !== undefined && konutDetails.floor !== null && konutDetails.floor !== '') 
-          buildingDetails.push({ label: 'Bulunduğu Kat', value: konutDetails.floor });
-        
-        if (konutDetails.total_floors !== undefined && konutDetails.total_floors !== null && konutDetails.total_floors !== '') 
-          buildingDetails.push({ label: 'Toplam Kat', value: konutDetails.total_floors });
+        // Building details – Prefabrik ilanlarda varsayılan 0/1 değerlerini gizle
+        if (!isPrefabrik) {
+          if (konutDetails.building_age !== undefined && konutDetails.building_age !== null && konutDetails.building_age !== '') 
+            buildingDetails.push({ label: 'Bina Yaşı', value: konutDetails.building_age });
+
+          if (konutDetails.floor !== undefined && konutDetails.floor !== null && konutDetails.floor !== '') 
+            buildingDetails.push({ label: 'Bulunduğu Kat', value: konutDetails.floor });
+
+          if (konutDetails.total_floors !== undefined && konutDetails.total_floors !== null && konutDetails.total_floors !== '') 
+            buildingDetails.push({ label: 'Toplam Kat', value: konutDetails.total_floors });
+        }
         
         if (konutDetails.heating) {
           const heatingMap: Record<string, string> = {
@@ -267,7 +269,9 @@ export default function ListingDetail() {
             'bina': 'Bina',
             'ofis': 'Ofis',
             'cafe': 'Cafe',
-            'bufe': 'Büfe'
+            'bufe': 'Büfe',
+            'otobus_hatti': 'Otobüs Hattı',
+            'taksi_hatti': 'Taksi Hattı'
           };
           propertyTypeDetails.push({ label: 'Ticari Mülk Tipi', value: ticariTypeMap[ticariDetails.ticari_type] || ticariDetails.ticari_type });
         }
@@ -277,12 +281,14 @@ export default function ListingDetail() {
         if (ticariDetails.net_sqm) areaDetails.push({ label: 'Net Alan', value: `${ticariDetails.net_sqm} m²` });
         
         // Room details
-        if (ticariDetails.room_count !== undefined && ticariDetails.room_count !== null && ticariDetails.room_count !== '') 
+        if (ticariDetails.room_count && Number(ticariDetails.room_count) > 0) {
           roomDetails.push({ label: 'Oda Sayısı', value: ticariDetails.room_count });
+        }
         
         // Building details
-        if (ticariDetails.building_age !== undefined && ticariDetails.building_age !== null && ticariDetails.building_age !== '') 
+        if (ticariDetails.building_age && Number(ticariDetails.building_age) > 0) {
           buildingDetails.push({ label: 'Bina Yaşı', value: ticariDetails.building_age });
+        }
         
         if (ticariDetails.floor !== undefined && ticariDetails.floor !== null && ticariDetails.floor !== '') 
           buildingDetails.push({ label: 'Bulunduğu Kat', value: ticariDetails.floor });

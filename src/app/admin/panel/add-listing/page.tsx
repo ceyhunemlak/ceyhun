@@ -124,7 +124,7 @@ const CategorySelection = ({
       { id: "villa", name: "Villa" },
       { id: "mustakil_ev", name: "Müstakil Ev" },
       { id: "bina", name: "Bina" },
-      { id: "prefabrik", name: "Prefabrik" }
+      { id: "Prefabrik", name: "Prefabrik" }
     ],
     ticari: [
       { id: "dukkan", name: "Dükkan" },
@@ -731,8 +731,8 @@ export default function AddListing() {
     if (currentStep === 2) {
       // Check required fields based on the selected category
       if (selectedCategory === "konut") {
-        // For prefabrik, only validate title, description and price
-        if (selectedType === "prefabrik") {
+        // For Prefabrik, only validate title, description and price
+if (selectedType === "Prefabrik") {
           return !!(
             formData.title && 
             formData.description && 
@@ -1044,8 +1044,8 @@ export default function AddListing() {
       if (selectedCategory === 'konut') {
         listingData.konut_type = handleEnumField(selectedType);
         
-        // For prefabrik, only use title, description, and price
-        if (selectedType === 'prefabrik') {
+        // For Prefabrik, only use title, description, and price
+if (selectedType === 'Prefabrik') {
           // Set default values for required fields in the database
           listingData.gross_sqm = 0;
           listingData.net_sqm = 0;
@@ -1275,7 +1275,7 @@ export default function AddListing() {
             </Button>
             <Button 
               variant="outline" 
-              onClick={() => router.push("/admin/panel")}
+              onClick={handleCancel}
             >
               Panele Dön
             </Button>

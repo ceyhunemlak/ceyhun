@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
+import neighborhoodsByDistrict from "@/lib/neighborhoods";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -157,4 +158,80 @@ export function createWhatsAppImageUrl(imageUrl: string | null | undefined, opti
   }
   
   return absoluteUrl;
+}
+
+// Helper to get neighborhood label with suffix (Mah. / Köyü) using neighborhoods data
+
+interface AddressParts {
+  province: string;
+  district: string;
+  neighborhood?: string;
+}
+
+// Capitalize first letter (simple fallback when diacritics are already correct)
+function capitalize(str: string): string {
+  if (!str) return "";
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+/**
+ * Converts an address slug object coming from database into a human-readable
+ * Turkish string like `Tokat/Merkez/Devegörmez Mah.`.
+ * - Restores Turkish characters for neighbourhood / village using the
+ *   `neighborhoods` dataset so we get e.g. `Devegörmez` instead of
+ *   `Devegormez`.
+ * - Appends the proper suffix: `Mah.` for mahalle and `Köyü` for köy.
+ */
+export function formatLocationFromAddress({ province, district, neighborhood }: AddressParts): string {
+  const provinceLabel = capitalize(province);
+  const districtLabel = capitalize(district);
+
+  let neighborhoodLabel = "";
+
+  if (neighborhood) {
+    const districtKey = district.toLowerCase();
+    const rawSlug = neighborhood.toLowerCase();
+
+    // Try direct match first
+    const districtData: any = (neighborhoodsByDistrict as any)[districtKey];
+    if (districtData) {
+      const mahItem = districtData.mahalle?.find((n: any) => n.value === rawSlug);
+      if (mahItem) {
+        neighborhoodLabel = `${mahItem.label} Mah.`;
+      } else {
+        const koyItem = districtData.koy?.find((n: any) => n.value === rawSlug);
+        if (koyItem) {
+          neighborhoodLabel = `${koyItem.label} Köyü`;
+        }
+      }
+    }
+
+    // If not matched, try again after stripping common suffixes from slug
+    if (!neighborhoodLabel) {
+      const strippedSlug = rawSlug.replace(/-(mahallesi|mahalle|mah|mh|koyu|köy|koy)$/i, "");
+      if (districtData) {
+        const mahItem = districtData.mahalle?.find((n: any) => n.value === strippedSlug);
+        if (mahItem) {
+          neighborhoodLabel = `${mahItem.label} Mah.`;
+        } else {
+          const koyItem = districtData.koy?.find((n: any) => n.value === strippedSlug);
+          if (koyItem) {
+            neighborhoodLabel = `${koyItem.label} Köyü`;
+          }
+        }
+      }
+
+      // Still not matched – build label from slug parts
+      if (!neighborhoodLabel) {
+        // Determine if it's village by checking keywords in original slug
+        const isVillage = /(koy|köy|koyu)/.test(rawSlug);
+        const pretty = capitalize(strippedSlug.replace(/-/g, " "));
+        neighborhoodLabel = `${pretty} ${isVillage ? "Köyü" : "Mah."}`;
+      }
+    }
+  }
+
+  return neighborhoodLabel
+    ? `${provinceLabel}/${districtLabel}/${neighborhoodLabel}`
+    : `${provinceLabel}/${districtLabel}`;
 }

@@ -189,60 +189,36 @@ export async function POST(request: NextRequest) {
         console.log(`Created sanitized title slug: ${sanitizedTitle}`);
         
         // Check if folder already exists and add suffix if needed
-        let folderExists = true;
-        let attemptCount = 0;
+        // Build initial folder path using the sanitized title
         let folderSuffix = '';
-        let fullFolderPath = '';
-        
-        while (folderExists && attemptCount < 10) {
-          fullFolderPath = `${baseFolder}/${sanitizedTitle}${folderSuffix}`;
-          
-          try {
-            // Check if folder exists in Cloudinary
-            console.log(`Checking if folder exists: ${fullFolderPath}`);
-            const result = await cloudinary.api.resources({
-              type: 'upload',
-              prefix: fullFolderPath,
-              max_results: 1
-            });
-            
-            // If no resources found, folder doesn't exist or is empty
-            if (result.resources.length === 0) {
-              folderExists = false;
-              console.log(`Folder ${fullFolderPath} is empty or doesn't exist`);
-            } else {
-              // Folder exists, try next suffix
-              attemptCount++;
-              folderSuffix = `-${attemptCount}`;
-              console.log(`Folder ${fullFolderPath} exists, trying with suffix: ${folderSuffix}`);
-            }
-          } catch (error) {
-            // If error is related to "not found", folder doesn't exist
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            if (errorMessage.includes('not found')) {
-              folderExists = false;
-              console.log(`Folder ${fullFolderPath} not found, will use this path`);
-            } else {
-              // For other errors, log and continue with default behavior
-              console.error('Error checking folder existence:', error);
-              folderExists = false;
-              // Fallback to a safe folder name in case of errors
-              folderSuffix = `-${Date.now().toString().slice(-6)}`;
-              console.log(`Using fallback folder suffix due to error: ${folderSuffix}`);
-            }
+        const initialFolderPath = `${baseFolder}/${sanitizedTitle}`;
+
+        try {
+          console.log(`Checking if folder exists: ${initialFolderPath}`);
+          const result = await cloudinary.api.resources({
+            type: 'upload',
+            prefix: initialFolderPath,
+            max_results: 1
+          });
+
+          // If there are already resources in this folder, we assume it belongs to
+          // a previous listing with the same title and add a timestamp suffix once.
+          if (result.resources.length > 0) {
+            // If a folder with the exact same name already exists, start with the suffix "-1"
+            // Further collisions are highly unlikely because the cache key prevents repeating this block
+            folderSuffix = '-1';
+            console.log(`Folder already exists, using suffix: ${folderSuffix}`);
           }
+        } catch (error) {
+          // Most of the time an error here simply means the folder does not exist yet.
+          // We will treat it as such and continue without adding any suffix.
+          console.warn('Folder existence check failed, continuing without suffix:', error instanceof Error ? error.message : String(error));
         }
-        
-        // If we couldn't find a unique name after 10 attempts, use timestamp
-        if (attemptCount >= 10) {
-          folderSuffix = `-${Date.now().toString().slice(-6)}`;
-          console.log(`Reached max attempts, using timestamp suffix: ${folderSuffix}`);
-        }
-        
+
         // Final folder name
         const finalFolderName = sanitizedTitle + folderSuffix;
         folder = `${baseFolder}/${finalFolderName}`;
-        
+         
         // Save to cache for future uploads from the same listing
         folderCache[cacheKey] = folder;
         

@@ -4,12 +4,12 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { MapPin, Bed, Expand, Car, ArrowRight, Calendar } from "lucide-react";
+import { createSlug, formatLocationFromAddress } from "@/lib/utils";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Pagination } from "swiper/modules";
 import 'swiper/css';
 import 'swiper/css/pagination';
 import { Loading } from "@/components/ui/loading";
-import { createSlug } from "@/lib/utils";
 
 // Define listing type
 interface Listing {
@@ -98,21 +98,22 @@ const ListingsGrid = () => {
               // Extract location from addresses if available
               if (detailData.addresses && detailData.addresses.length > 0) {
                 const address = detailData.addresses[0] as Address;
-                // Capitalize first letter of each part
-                const province = address.province.charAt(0).toUpperCase() + address.province.slice(1);
-                const district = address.district.charAt(0).toUpperCase() + address.district.slice(1);
-                const neighborhood = address.neighborhood 
-                  ? '/' + (address.neighborhood.charAt(0).toUpperCase() + address.neighborhood.slice(1)) 
-                  : '';
-                enhancedListing.location = `${province}/${district}${neighborhood}`;
+                enhancedListing.location = formatLocationFromAddress(address);
                 enhancedListing.addresses = detailData.addresses;
               }
               
               // Extract property-specific details
               if (listing.property_type === 'konut' && detailData.konut_details) {
                 const konutDetails = detailData.konut_details[0] as KonutDetails;
-                enhancedListing.rooms = konutDetails.room_count;
-                enhancedListing.area = konutDetails.gross_sqm;
+
+                const isPrefabrik = (konutDetails.konut_type ?? '').toLowerCase() === 'prefabrik';
+
+                // Prefabrik ilanlarda varsayılan oda/alan bilgilerini göstermeyelim
+                if (!isPrefabrik) {
+                  enhancedListing.rooms = konutDetails.room_count;
+                  enhancedListing.area = konutDetails.gross_sqm;
+                }
+
                 enhancedListing.subcategory = konutDetails.konut_type || 'Daire';
               } else if (listing.property_type === 'ticari' && detailData.ticari_details) {
                 const ticariDetails = detailData.ticari_details[0] as TicariDetails;
@@ -176,6 +177,23 @@ const ListingsGrid = () => {
     return new Intl.NumberFormat('tr-TR').format(price) + ' ₺';
   };
 
+  // Helper function to get subcategory with proper formatting
+  const formatSubcategoryName = (raw: string) => {
+    const map: Record<string, string> = {
+      'mustakil_ev': 'Müstaki Ev',
+      'otobus_hatti': 'Otobüs Hattı',
+      'taksi_hatti': 'Taksi Hattı',
+    };
+    if (!raw) return '';
+    const lowered = raw.toLowerCase();
+    if (map[lowered]) return map[lowered];
+    // Replace underscores with spaces and capitalize each word
+    return raw
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
   // Helper function to get subcategory with first letter capitalized
   const getSubcategory = (listing: Listing) => {
     let subcategory = '';
@@ -194,8 +212,7 @@ const ListingsGrid = () => {
       subcategory = fallbackMap[listing.property_type] || listing.property_type;
     }
     
-    // Ensure first letter is capitalized
-    return subcategory.charAt(0).toUpperCase() + subcategory.slice(1);
+    return formatSubcategoryName(subcategory);
   };
 
   return (
@@ -314,7 +331,7 @@ const ListingsGrid = () => {
                         {/* Property details at bottom */}
                         <div className="border-t border-gray-100 pt-4 mt-auto">
                           <div className="flex flex-wrap gap-4 text-sm">
-                            {listing.rooms && (
+                            {listing.rooms && listing.rooms !== 'Belirtilmemiş' && listing.rooms !== '0' && (
                               <div className="flex items-center">
                                 <Bed size={15} className="mr-1.5 flex-shrink-0 text-gray-500" />
                                 <span>{listing.rooms} Oda</span>

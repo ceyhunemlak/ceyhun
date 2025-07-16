@@ -687,69 +687,13 @@ export default function AdminPanel() {
 
   // Helper function to determine subcategory based on property type and other data
   const getSubCategory = (listing: Listing) => {
-    // If the listing already has a sub_category field, use it
+    // If the listing already has a sub_category field from the API, use it
     if (listing.sub_category) {
       return listing.sub_category;
     }
     
-    // Otherwise, determine subcategory based on property type and other data
-    switch (listing.property_type.toLowerCase()) {
-      case 'vasita':
-        // For vehicles, we might determine by brand/model or vehicle type
-        if (listing.title.toLowerCase().includes('mazda')) {
-          return 'Otomobil';
-        } else if (listing.title.toLowerCase().includes('otomobil')) {
-          return 'Otomobil';
-        } else if (listing.title.toLowerCase().includes('motosiklet')) {
-          return 'Motosiklet';
-        } else if (listing.title.toLowerCase().includes('ticari araç')) {
-          return 'Ticari Araç';
-        } else {
-          // Default for vehicles
-          return 'Otomobil';
-        }
-      
-      case 'konut':
-        // For residential properties
-        if (listing.title.toLowerCase().includes('daire')) {
-          return 'Daire';
-        } else if (listing.title.toLowerCase().includes('villa')) {
-          return 'Villa';
-        } else if (listing.title.toLowerCase().includes('müstakil')) {
-          return 'Müstakil Ev';
-        } else if (listing.title.toLowerCase().includes('karşıyaka')) {
-          return 'Villa';
-        } else {
-          return 'Daire';
-        }
-      
-      case 'ticari':
-        // For commercial properties
-        if (listing.title.toLowerCase().includes('ofis')) {
-          return 'Ofis';
-        } else if (listing.title.toLowerCase().includes('dükkan')) {
-          return 'Dükkan';
-        } else if (listing.title.toLowerCase().includes('mağaza')) {
-          return 'Mağaza';
-        } else {
-          return 'İşyeri';
-        }
-      
-      case 'arsa':
-        // For land
-        if (listing.title.toLowerCase().includes('tarla')) {
-          return 'Tarla';
-        } else if (listing.title.toLowerCase().includes('bağ')) {
-          return 'Bağ';
-        } else if (listing.title.toLowerCase().includes('elektrikli')) {
-          return 'İmarlı Arsa';
-        } else {
-          return 'İmarlı Arsa';
-        }
-      
-      default:
-        return '-';
-    }
+    // Fallback logic if sub_category is not available
+    return '-';
   };
 
   // Helper function to format listing status
