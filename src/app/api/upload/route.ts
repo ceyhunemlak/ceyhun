@@ -188,37 +188,11 @@ export async function POST(request: NextRequest) {
         
         console.log(`Created sanitized title slug: ${sanitizedTitle}`);
         
-        // Check if folder already exists and add suffix if needed
-        // Build initial folder path using the sanitized title
-        let folderSuffix = '';
-        const initialFolderPath = `${baseFolder}/${sanitizedTitle}`;
-
-        try {
-          console.log(`Checking if folder exists: ${initialFolderPath}`);
-          const result = await cloudinary.api.resources({
-            type: 'upload',
-            prefix: initialFolderPath,
-            max_results: 1
-          });
-
-          // If there are already resources in this folder, we assume it belongs to
-          // a previous listing with the same title and add a timestamp suffix once.
-          if (result.resources.length > 0) {
-            // If a folder with the exact same name already exists, start with the suffix "-1"
-            // Further collisions are highly unlikely because the cache key prevents repeating this block
-            folderSuffix = '-1';
-            console.log(`Folder already exists, using suffix: ${folderSuffix}`);
-          }
-        } catch (error) {
-          // Most of the time an error here simply means the folder does not exist yet.
-          // We will treat it as such and continue without adding any suffix.
-          console.warn('Folder existence check failed, continuing without suffix:', error instanceof Error ? error.message : String(error));
-        }
-
-        // Final folder name
-        const finalFolderName = sanitizedTitle + folderSuffix;
+        // Build folder name deterministically with listing ID to avoid collisions
+        // and ensure all concurrent uploads for the same listing share the same folder.
+        const finalFolderName = `${sanitizedTitle}-${effectiveListingId}`;
         folder = `${baseFolder}/${finalFolderName}`;
-         
+ 
         // Save to cache for future uploads from the same listing
         folderCache[cacheKey] = folder;
         

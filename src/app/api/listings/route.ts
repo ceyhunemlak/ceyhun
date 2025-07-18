@@ -674,44 +674,6 @@ export async function DELETE(request: NextRequest) {
             console.error(`Error deleting folder ${folderPath}:`, folderError);
           }
         }
-        
-        // Step 3: Try to find and delete any potential old folders
-        // This handles cases where the listing was renamed and the folder path changed
-        try {
-          console.log(`Checking for potential old folders for listing ID: ${id}`);
-          
-          // Look for folders that might match this listing's pattern
-          const baseFolder = `ceyhun-emlak/${propertyType}`;
-          
-          // Try to list all subfolders in the base folder
-          const subFolders = await cloudinary.api.sub_folders(baseFolder);
-          
-          if (subFolders && subFolders.folders) {
-            console.log(`Found ${subFolders.folders.length} subfolders in ${baseFolder}`);
-            
-            // For each subfolder, check if it contains any images with our listing ID
-            for (const folder of subFolders.folders) {
-              const folderPath = folder.path;
-              
-              // Skip folders we've already tried to delete
-              if (deletedFolderPaths.includes(folderPath)) {
-                continue;
-              }
-              
-              console.log(`Checking folder ${folderPath} for listing ID ${id}`);
-              
-              try {
-                // Delete the folder and its contents anyway as a precaution
-                console.log(`Attempting to delete potential old folder: ${folderPath}`);
-                await deleteCloudinaryFolder(folderPath);
-              } catch (oldFolderError) {
-                console.error(`Error deleting potential old folder ${folderPath}:`, oldFolderError);
-              }
-            }
-          }
-        } catch (oldFoldersError) {
-          console.error('Error checking for old folders:', oldFoldersError);
-        }
       } catch (error) {
         console.error('Error deleting Cloudinary folder:', error);
         // Continue with the listing deletion even if Cloudinary deletion fails
