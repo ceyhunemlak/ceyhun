@@ -6,10 +6,11 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Image from "next/image";
 import Link from "next/link";
-import { MapPin, Bed, Expand, Car, Phone, MessageCircle, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
+import { MapPin, Bed, Expand, Car, Phone, MessageCircle, ChevronLeft, ChevronRight, ChevronDown, Share2, Copy, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Loading } from "@/components/ui/loading";
+import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { FreeMode, Navigation } from "swiper/modules";
 import 'swiper/css';
@@ -68,8 +69,15 @@ export default function ListingDetail() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [showPhoneNumbers, setShowPhoneNumbers] = useState(false);
   const [showWhatsAppNumbers, setShowWhatsAppNumbers] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const lightboxImageRef = useRef<HTMLImageElement | null>(null);
+  const lightboxContainerRef = useRef<HTMLDivElement | null>(null);
+  const [lightboxSideOffset, setLightboxSideOffset] = useState<number>(16);
+  const [lightboxTopOffset, setLightboxTopOffset] = useState<number>(12);
   const phoneDropdownRef = useRef<HTMLDivElement>(null);
   const whatsappDropdownRef = useRef<HTMLDivElement>(null);
+  const shareDropdownRef = useRef<HTMLDivElement>(null);
   
   // Helper function to format property type
   const formatPropertyType = (type: string) => {
@@ -518,6 +526,9 @@ export default function ListingDetail() {
       if (whatsappDropdownRef.current && !whatsappDropdownRef.current.contains(event.target as Node)) {
         setShowWhatsAppNumbers(false);
       }
+      if (shareDropdownRef.current && !shareDropdownRef.current.contains(event.target as Node)) {
+        setShowShareMenu(false);
+      }
     }
     
     document.addEventListener("mousedown", handleClickOutside);
@@ -525,6 +536,91 @@ export default function ListingDetail() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  const getCurrentUrl = () => {
+    if (typeof window === 'undefined') return '';
+    return window.location.href;
+  };
+
+  // Calculate dynamic offsets so controls align with the visible image (object-contain)
+  const recalcLightboxOffsets = useCallback(() => {
+    const img = lightboxImageRef.current;
+    const container = lightboxContainerRef.current;
+    if (!img || !container) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const containerWidth = containerRect.width;
+    const containerHeight = containerRect.height;
+
+    const naturalWidth = img.naturalWidth || 0;
+    const naturalHeight = img.naturalHeight || 0;
+    if (!naturalWidth || !naturalHeight || !containerWidth || !containerHeight) return;
+
+    const imageAspect = naturalWidth / naturalHeight;
+    const containerAspect = containerWidth / containerHeight;
+
+    let displayedWidth: number;
+    let displayedHeight: number;
+    if (containerAspect > imageAspect) {
+      // Image limited by height
+      displayedWidth = containerHeight * imageAspect;
+      displayedHeight = containerHeight;
+    } else {
+      // Image limited by width
+      displayedWidth = containerWidth;
+      displayedHeight = containerWidth / imageAspect;
+    }
+
+    const sideGap = Math.max(0, (containerWidth - displayedWidth) / 2);
+    const topGap = Math.max(0, (containerHeight - displayedHeight) / 2);
+    setLightboxSideOffset(Math.max(12, sideGap + 12));
+    setLightboxTopOffset(Math.max(12, topGap + 12));
+  }, []);
+
+  useEffect(() => {
+    if (!isLightboxOpen) return;
+    recalcLightboxOffsets();
+    const onResize = () => recalcLightboxOffsets();
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onResize);
+    };
+  }, [isLightboxOpen, recalcLightboxOffsets, activeImageIndex]);
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(getCurrentUrl());
+      setShowShareMenu(false);
+      // Basic feedback without external deps
+      alert('Bağlantı kopyalandı');
+    } catch (err) {
+      console.error('Failed to copy link', err);
+    }
+  };
+
+  const isMobileDevice = () => {
+    if (typeof navigator === 'undefined') return false;
+    return /Android|iPhone|iPad|iPod|Windows Phone/i.test(navigator.userAgent);
+  };
+
+  const getWhatsAppShareUrl = () => {
+    const text = `${listing?.title ?? ''} - ${getCurrentUrl()}`;
+    const encoded = encodeURIComponent(text);
+    return isMobileDevice()
+      ? `https://api.whatsapp.com/send?text=${encoded}`
+      : `https://web.whatsapp.com/send?text=${encoded}`;
+  };
+
+  const getWhatsAppNumberUrl = (number: string) => {
+    const phone = number.startsWith('90') ? number : `90${number}`;
+    const message = `Merhaba, bu ilan hakkında bilgi almak istiyorum.\n\n${listing?.title ?? ''}\n${getCurrentUrl()}`;
+    const encoded = encodeURIComponent(message);
+    return isMobileDevice()
+      ? `https://api.whatsapp.com/send?phone=${phone}&text=${encoded}`
+      : `https://web.whatsapp.com/send?phone=${phone}&text=${encoded}`;
+  };
   
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -615,6 +711,15 @@ export default function ListingDetail() {
                             }}
                             priority={true}
                           />
+
+                          {/* Enlarge (Lightbox) Button */}
+                          <button
+                            onClick={() => setIsLightboxOpen(true)}
+                            className="absolute right-4 top-4 flex items-center justify-center bg-white/80 hover:bg-white backdrop-blur-sm rounded-full p-2 shadow-md transition-all duration-300 hover:scale-110 z-10"
+                            aria-label="Fotoğrafı büyüt"
+                          >
+                            <Expand size={20} className="text-gray-800" />
+                          </button>
                           
                           {/* Navigation Arrows */}
                           <button 
@@ -633,7 +738,7 @@ export default function ListingDetail() {
                             <ChevronRight size={24} className="text-yellow-500" />
                           </button>
                         </>
-                      ) : (
+                       ) : (
                         <Image
                           src="/images/ce.png"
                           alt={listing.title}
@@ -686,6 +791,61 @@ export default function ListingDetail() {
                       </div>
                     )}
                   </div>
+
+                  {/* Lightbox Dialog */}
+                  <Dialog open={isLightboxOpen} onOpenChange={setIsLightboxOpen}>
+                    <DialogContent
+                      className="sm:max-w-[95vw] md:max-w-[95vw] lg:max-w-[95vw] w-[calc(100%-2rem)] p-0 bg-transparent border-0 shadow-none rounded-none"
+                      showCloseButton={false}
+                    >
+                      <div ref={lightboxContainerRef} className="relative w-full h-[75vh] sm:h-[85vh] bg-transparent">
+                        {getImages().length > 0 && (
+                          <Image
+                            src={getImages()[activeImageIndex]?.url ? addCacheBuster(getImages()[activeImageIndex].url) : "/images/ce.png"}
+                            alt={listing?.title || "İlan görseli büyük"}
+                            fill
+                            unoptimized={true}
+                            className="object-contain"
+                            sizes="100vw"
+                            priority
+                            ref={lightboxImageRef}
+                            onLoad={recalcLightboxOffsets}
+                          />
+                        )}
+
+                        {/* Custom Close Button over the image top-right */}
+                        <DialogClose
+                          className="absolute z-20 rounded-full bg-white/80 hover:bg-white backdrop-blur-sm shadow-md transition-all duration-300 hover:scale-110 flex items-center justify-center leading-none w-9 h-9 sm:w-10 sm:h-10"
+                          style={{ right: lightboxSideOffset + 16, top: lightboxTopOffset }}
+                          aria-label="Kapat"
+                        >
+                          <X size={18} className="text-gray-900" />
+                        </DialogClose>
+
+                        {/* Navigation inside lightbox */}
+                        {getImages().length > 1 && (
+                          <>
+                            <button
+                              onClick={goToPrevImage}
+                              className="absolute top-1/2 -translate-y-1/2 flex items-center justify-center bg-white/80 hover:bg-white backdrop-blur-sm rounded-full p-2 shadow-md transition-all duration-300 hover:scale-110"
+                              style={{ left: lightboxSideOffset + 16 }}
+                              aria-label="Önceki fotoğraf"
+                            >
+                              <ChevronLeft size={24} className="text-gray-900" />
+                            </button>
+                            <button
+                              onClick={goToNextImage}
+                              className="absolute top-1/2 -translate-y-1/2 flex items-center justify-center bg-white/80 hover:bg-white backdrop-blur-sm rounded-full p-2 shadow-md transition-all duration-300 hover:scale-110"
+                              style={{ right: lightboxSideOffset + 16 }}
+                              aria-label="Sonraki fotoğraf"
+                            >
+                              <ChevronRight size={24} className="text-gray-900" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                   
                   {/* Description */}
                   <div className="bg-white rounded-xl shadow-md p-6 sm:p-8">
@@ -779,10 +939,11 @@ export default function ListingDetail() {
                         {showWhatsAppNumbers && (
                           <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg py-2">
                             <a 
-                              href="https://wa.me/905323850420" 
+                              href={getWhatsAppNumberUrl('905323850420')} 
                               target="_blank"
                               rel="noopener noreferrer"
                               className="flex items-center px-4 py-3 hover:bg-gray-100 transition-colors"
+                              onClick={(e) => { e.currentTarget.href = getWhatsAppNumberUrl('905323850420'); }}
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#25D366" className="mr-2">
                                 <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
@@ -793,10 +954,11 @@ export default function ListingDetail() {
                               </div>
                             </a>
                             <a 
-                              href="https://wa.me/905366067071" 
+                              href={getWhatsAppNumberUrl('905366067071')} 
                               target="_blank"
                               rel="noopener noreferrer"
                               className="flex items-center px-4 py-3 hover:bg-gray-100 transition-colors"
+                              onClick={(e) => { e.currentTarget.href = getWhatsAppNumberUrl('905366067071'); }}
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#25D366" className="mr-2">
                                 <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
@@ -804,6 +966,65 @@ export default function ListingDetail() {
                               <div>
                                 <p className="font-medium">0 (536) 606 70 71</p>
                                 <p className="text-xs text-gray-500">Berk Çiftçi</p>
+                              </div>
+                            </a>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="relative" ref={shareDropdownRef}>
+                        <Button 
+                          variant="outline"
+                          className="w-full flex items-center justify-center gap-2 py-3 text-base"
+                          onClick={() => setShowShareMenu(!showShareMenu)}
+                        >
+                          <Share2 size={18} />
+                          <span>Paylaş</span>
+                          <ChevronDown size={16} className={`ml-1 transition-transform ${showShareMenu ? 'rotate-180' : ''}`} />
+                        </Button>
+
+                        {showShareMenu && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg py-2">
+                            <button
+                              onClick={handleCopyLink}
+                              className="w-full flex items-center px-4 py-3 hover:bg-gray-100 transition-colors text-left"
+                            >
+                              <Copy size={16} className="mr-2 text-gray-700" />
+                              <div>
+                                <p className="font-medium">Linki Kopyala</p>
+                                <p className="text-xs text-gray-500">Sayfa bağlantısını panoya kopyala</p>
+                              </div>
+                            </button>
+                            <a 
+                              href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(getCurrentUrl())}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center px-4 py-3 hover:bg-gray-100 transition-colors"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#1877F2" className="mr-2">
+                                <path d="M22.675 0h-21.35C.596 0 0 .596 0 1.325v21.351C0 23.404.596 24 1.325 24H12.82v-9.294H9.692V11.08h3.128V8.413c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.795.143v3.24l-1.918.001c-1.504 0-1.796.715-1.796 1.764v2.314h3.587l-.467 3.626h-3.12V24h6.116C23.404 24 24 23.404 24 22.676V1.325C24 .596 23.404 0 22.675 0z"/>
+                              </svg>
+                              <div>
+                                <p className="font-medium">Facebook</p>
+                                <p className="text-xs text-gray-500">Facebook'ta paylaş</p>
+                              </div>
+                            </a>
+                            <a 
+                              href={getWhatsAppShareUrl()}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center px-4 py-3 hover:bg-gray-100 transition-colors"
+                              onClick={(e) => {
+                                // Ensure correct endpoint per device
+                                e.currentTarget.href = getWhatsAppShareUrl();
+                              }}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#25D366" className="mr-2">
+                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                              </svg>
+                              <div>
+                                <p className="font-medium">WhatsApp</p>
+                                <p className="text-xs text-gray-500">Bağlantıyı WhatsApp ile paylaş</p>
                               </div>
                             </a>
                           </div>

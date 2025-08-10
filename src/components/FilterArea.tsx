@@ -39,8 +39,12 @@ const FilterArea = () => {
   const [maxArea, setMaxArea] = useState("");
   const [roomCount, setRoomCount] = useState("all");
   const [saleStatus, setSaleStatus] = useState("sale");
+  // Additional types for other tabs
+  const [ticariType, setTicariType] = useState("all");
+  const [arsaType, setArsaType] = useState("all");
+  // Address is handled with selects using selectedProvince/selectedDistrict/selectedNeighborhood
   
-  // Location states
+  // Location states (kept for legacy select-based flows used elsewhere)
   const [selectedProvince, setSelectedProvince] = useState("tokat");
   const [selectedDistrict, setSelectedDistrict] = useState("");
   const [selectedNeighborhood, setSelectedNeighborhood] = useState("");
@@ -296,7 +300,7 @@ const FilterArea = () => {
   
   return (
     <div 
-      className="w-full max-w-7xl mx-auto px-2 sm:px-4 md:px-6 py-3 sm:py-5 md:py-8 glass-effect rounded-lg sm:rounded-xl md:rounded-2xl shadow-lg hover-shadow no-select filter-area border border-white/30 max-h-[70vh] sm:max-h-none overflow-y-auto touch-pan-y" 
+      className="w-full max-w-6xl mx-auto px-2 sm:px-3 md:px-4 py-2 sm:py-3 md:py-5 glass-effect rounded-lg sm:rounded-xl md:rounded-2xl shadow-md hover-shadow no-select filter-area border border-white/30 max-h-[70vh] sm:max-h-none overflow-y-auto touch-pan-y" 
       style={{
         userSelect: 'none', 
         WebkitUserSelect: 'none',
@@ -306,150 +310,50 @@ const FilterArea = () => {
       } as React.CSSProperties}
     >
       <Tabs defaultValue="konut" className="w-full" onValueChange={(value) => setActiveTab(value)}>
-        <TabsList className="grid grid-cols-4 mb-3 sm:mb-6 md:mb-10 w-full h-auto p-1 sm:p-1.5 md:p-2 bg-gray-100/80 rounded-md sm:rounded-lg md:rounded-xl">
+        <TabsList className="grid grid-cols-4 mb-2 sm:mb-4 md:mb-6 w-full h-auto p-0.5 sm:p-1 md:p-1.5 bg-gray-100/80 rounded-md sm:rounded-lg">
           <TabsTrigger 
             value="konut" 
-            className="font-headings flex items-center justify-center gap-1 sm:gap-1.5 md:gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground py-1.5 sm:py-2.5 md:py-4 text-xs sm:text-sm md:text-base font-medium rounded-md transition-all duration-300 data-[state=active]:shadow-md"
+            className="font-headings flex items-center justify-center gap-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground py-1 sm:py-1.5 md:py-2 text-xs sm:text-sm md:text-base font-medium rounded-md transition-all duration-300 data-[state=active]:shadow-sm"
           >
-            <HomeIcon size={14} className="sm:size-[18px] md:size-[22px]" />
+            <HomeIcon size={12} className="sm:size-[14px] md:size-[16px]" />
             <span>Konut</span>
           </TabsTrigger>
           <TabsTrigger 
             value="ticari" 
-            className="font-headings flex items-center justify-center gap-1 sm:gap-1.5 md:gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground py-1.5 sm:py-2.5 md:py-4 text-xs sm:text-sm md:text-base font-medium rounded-md transition-all duration-300 data-[state=active]:shadow-md"
+            className="font-headings flex items-center justify-center gap-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground py-1 sm:py-1.5 md:py-2 text-xs sm:text-sm md:text-base font-medium rounded-md transition-all duration-300 data-[state=active]:shadow-sm"
           >
-            <Building2 size={14} className="sm:size-[18px] md:size-[22px]" />
+            <Building2 size={12} className="sm:size-[14px] md:size-[16px]" />
             <span>Ticari</span>
           </TabsTrigger>
           <TabsTrigger 
             value="arsa" 
-            className="font-headings flex items-center justify-center gap-1 sm:gap-1.5 md:gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground py-1.5 sm:py-2.5 md:py-4 text-xs sm:text-sm md:text-base font-medium rounded-md transition-all duration-300 data-[state=active]:shadow-md"
+            className="font-headings flex items-center justify-center gap-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground py-1 sm:py-1.5 md:py-2 text-xs sm:text-sm md:text-base font-medium rounded-md transition-all duration-300 data-[state=active]:shadow-sm"
           >
-            <Map size={14} className="sm:size-[18px] md:size-[22px]" />
+            <Map size={12} className="sm:size-[14px] md:size-[16px]" />
             <span>Arsa</span>
           </TabsTrigger>
           <Link 
             href="/ilanlar/vasita" 
-            className="font-headings flex items-center justify-center gap-1 sm:gap-1.5 md:gap-2 py-1.5 sm:py-2.5 md:py-4 text-xs sm:text-sm md:text-base font-medium w-full rounded-md bg-gray-100/80 text-gray-900"
+            className="font-headings flex items-center justify-center gap-1 py-1 sm:py-1.5 md:py-2 text-xs sm:text-sm md:text-base font-medium w-full rounded-md bg-gray-100/80 text-gray-900"
           >
-            <Car size={14} className="sm:size-[18px] md:size-[22px]" />
+            <Car size={12} className="sm:size-[14px] md:size-[16px]" />
             <span>Vasıta</span>
           </Link>
         </TabsList>
 
         {/* Konut Content */}
-        <TabsContent value="konut" className="space-y-3 sm:space-y-5 md:space-y-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 md:gap-8">
-            <div className="space-y-2 sm:space-y-4 md:space-y-6">
-              <div className="relative">
-                <Label className="font-headings mb-1 sm:mb-2 md:mb-3 block text-xs sm:text-sm md:text-base font-medium">İlan Durumu</Label>
-                <Select value={saleStatus} onValueChange={setSaleStatus}>
-                  <SelectTrigger className="w-full py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm md:text-base">
-                    <SelectValue placeholder="İlan Durumu Seçin">
-                      {saleStatus === "sale" ? "Satılık" : "Kiralık"}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent sideOffset={4} className="rounded-xl border border-gray-200">
-                    <SelectItem value="sale">Satılık</SelectItem>
-                    <SelectItem value="rent">Kiralık</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="relative">
-                <Label className="font-headings mb-1 sm:mb-2 md:mb-3 block text-xs sm:text-sm md:text-base font-medium">Konut Tipi</Label>
-                <Select value={konutType} onValueChange={setKonutType}>
-                  <SelectTrigger className="w-full py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm md:text-base">
-                    <SelectValue placeholder="Konut Tipi Seçin" />
-                  </SelectTrigger>
-                  <SelectContent sideOffset={4} className="rounded-xl border border-gray-200">
-                    <SelectItem value="all">Tümü</SelectItem>
-                    <SelectItem value="daire">Daire</SelectItem>
-                    <SelectItem value="villa">Villa</SelectItem>
-                    <SelectItem value="mustakil">Müstakil Ev</SelectItem>
-                    <SelectItem value="bina">Bina</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            <div className="space-y-2 sm:space-y-4 md:space-y-6">
+        <TabsContent value="konut" className="space-y-2 sm:space-y-3 md:space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-2 md:gap-4">
+            {/* Col 1 - Address */}
+            <div className="space-y-1">
               <div>
-                <Label className="font-headings mb-1 sm:mb-2 md:mb-3 block text-xs sm:text-sm md:text-base font-medium">Fiyat Aralığı</Label>
-                <div className="grid grid-cols-2 gap-1 sm:gap-2 md:gap-4">
-                  <div className="relative">
-                    <Input 
-                      type="text" 
-                      placeholder="Min TL" 
-                      value={minPrice}
-                      onChange={handleMinPriceChange}
-                      className="py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all pl-2 sm:pl-3 md:pl-4 text-xs sm:text-sm md:text-base"
-                    />
-                  </div>
-                  <div className="relative">
-                    <Input 
-                      type="text" 
-                      placeholder="Max TL" 
-                      value={maxPrice}
-                      onChange={handleMaxPriceChange}
-                      className="py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all pl-2 sm:pl-3 md:pl-4 text-xs sm:text-sm md:text-base"
-                    />
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <Label className="font-headings mb-1 sm:mb-2 md:mb-3 block text-xs sm:text-sm md:text-base font-medium">Alan (m²)</Label>
-                <div className="grid grid-cols-2 gap-1 sm:gap-2 md:gap-4">
-                  <div className="relative">
-                    <Input 
-                      type="text" 
-                      placeholder="Min m²" 
-                      value={minArea}
-                      onChange={(e) => setMinArea(e.target.value)}
-                      className="py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all pl-2 sm:pl-3 md:pl-4 text-xs sm:text-sm md:text-base"
-                    />
-                  </div>
-                  <div className="relative">
-                    <Input 
-                      type="text" 
-                      placeholder="Max m²" 
-                      value={maxArea}
-                      onChange={(e) => setMaxArea(e.target.value)}
-                      className="py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all pl-2 sm:pl-3 md:pl-4 text-xs sm:text-sm md:text-base"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="space-y-2 sm:space-y-4 md:space-y-6">
-              <div className="relative">
-                <Label className="font-headings mb-1 sm:mb-2 md:mb-3 block text-xs sm:text-sm md:text-base font-medium">Oda Sayısı</Label>
-                <Select value={roomCount} onValueChange={setRoomCount}>
-                  <SelectTrigger className="w-full py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm md:text-base">
-                    <SelectValue placeholder="Oda Sayısı Seçin" />
-                  </SelectTrigger>
-                  <SelectContent sideOffset={4} className="rounded-xl border border-gray-200">
-                    <SelectItem value="all">Tümü</SelectItem>
-                    <SelectItem value="1+0">1+0</SelectItem>
-                    <SelectItem value="1+1">1+1</SelectItem>
-                    <SelectItem value="2+1">2+1</SelectItem>
-                    <SelectItem value="3+1">3+1</SelectItem>
-                    <SelectItem value="4+1">4+1</SelectItem>
-                    <SelectItem value="5+1">5+1 ve üzeri</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="relative">
-                <Label className="font-headings mb-1 sm:mb-2 md:mb-3 block text-xs sm:text-sm md:text-base font-medium">İl/İlçe/Mahalle-Köy</Label>
-                <div className="grid grid-cols-3 gap-1 sm:gap-1 md:gap-2">
+                <Label className="font-headings mb-0.5 sm:mb-1 block text-xs sm:text-sm font-medium">Adres</Label>
+                <div className="flex flex-col gap-1">
                   <Select value={selectedProvince} onValueChange={handleProvinceChange}>
-                    <SelectTrigger className="w-full py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm md:text-base">
+                    <SelectTrigger className="w-full py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm">
                       <SelectValue placeholder="İl" />
                     </SelectTrigger>
-                    <SelectContent sideOffset={4} className="rounded-xl border border-gray-200 max-h-[200px] overflow-y-auto">
+                    <SelectContent sideOffset={4} className="rounded-lg border border-gray-200 max-h-[200px] overflow-y-auto">
                       {provinces.map((province) => (
                         <SelectItem key={province.toLowerCase()} value={province.toLowerCase()}>
                           {province}
@@ -462,10 +366,10 @@ const FilterArea = () => {
                     onValueChange={handleDistrictChange}
                     disabled={!selectedProvince}
                   >
-                    <SelectTrigger className="w-full py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm md:text-base">
+                    <SelectTrigger className="w-full py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm">
                       <SelectValue placeholder="İlçe" />
                     </SelectTrigger>
-                    <SelectContent sideOffset={4} className="rounded-xl border border-gray-200 max-h-[200px] overflow-y-auto">
+                    <SelectContent sideOffset={4} className="rounded-lg border border-gray-200 max-h-[200px] overflow-y-auto">
                       {districts.map((district) => (
                         <SelectItem key={district.toLowerCase()} value={district.toLowerCase()}>
                           {district}
@@ -478,12 +382,11 @@ const FilterArea = () => {
                     onValueChange={setSelectedNeighborhood}
                     disabled={!selectedDistrict}
                   >
-                    <SelectTrigger className="w-full py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm md:text-base">
+                    <SelectTrigger className="w-full py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm">
                       <SelectValue placeholder={selectedDistrict ? "Mahalle/Köy" : "İlçe Seçin"} />
                     </SelectTrigger>
-                    <SelectContent sideOffset={4} className="rounded-xl border border-gray-200 max-h-[200px] sm:max-h-[250px] md:max-h-[300px]">
+                    <SelectContent sideOffset={4} className="rounded-lg border border-gray-200 max-h-[200px] sm:max-h-[250px] md:max-h-[300px]">
                       {selectedProvince === 'tokat' && selectedDistrict ? (
-                        // For Tokat, use the static data with mahalle/köy separation
                         <>
                           {getNeighborhoods(selectedDistrict).mahalle && getNeighborhoods(selectedDistrict).mahalle.length > 0 && (
                             <>
@@ -495,7 +398,6 @@ const FilterArea = () => {
                               ))}
                             </>
                           )}
-                          
                           {getNeighborhoods(selectedDistrict).koy && getNeighborhoods(selectedDistrict).koy.length > 0 && (
                             <>
                               <div className="px-2 py-1.5 text-sm font-semibold bg-yellow-100 text-yellow-800 mt-1">Köyler</div>
@@ -508,7 +410,6 @@ const FilterArea = () => {
                           )}
                         </>
                       ) : (
-                        // For other provinces, use the dynamic data
                         neighborhoods.map((neighborhood) => (
                           <SelectItem key={neighborhood} value={neighborhood}>
                             {formatLabel(neighborhood)}
@@ -520,62 +421,198 @@ const FilterArea = () => {
                 </div>
               </div>
             </div>
-          </div>
-          
-          <div className="flex justify-center mt-2 sm:mt-5 md:mt-10">
-            <Button 
-              size="sm"
-              className="font-headings px-4 sm:px-6 md:px-10 py-2 sm:py-4 md:py-7 text-sm sm:text-base md:text-lg font-medium rounded-md sm:rounded-lg md:rounded-xl shadow-lg hover:shadow-xl transition-all duration-500 bg-primary hover:bg-primary/90 group"
-              onClick={() => {
-                const params = new URLSearchParams();
-                
-                if (minPrice) params.append('minPrice', getUnformattedPrice(minPrice));
-                if (maxPrice) params.append('maxPrice', getUnformattedPrice(maxPrice));
-                if (minArea) params.append('minArea', minArea);
-                if (maxArea) params.append('maxArea', maxArea);
-                if (roomCount && roomCount !== 'all') params.append('roomCount', roomCount);
-                if (konutType && konutType !== 'all') params.append('konutType', konutType);
-                if (saleStatus) params.append('listingStatus', saleStatus === 'sale' ? 'satilik' : 'kiralik');
-                if (selectedProvince) params.append('province', selectedProvince);
-                if (selectedDistrict) params.append('district', selectedDistrict);
-                if (selectedNeighborhood) params.append('neighborhood', selectedNeighborhood);
-                
-                router.push(`/ilanlar/konut?${params.toString()}`);
-              }}
-            >
-              <Search className="mr-1.5 sm:mr-2 md:mr-3 group-hover:scale-110 transition-transform duration-300" size={14} />
-              Ara
-              <ArrowRight className="ml-1.5 sm:ml-2 opacity-100 sm:opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" size={12} />
-            </Button>
-          </div>
-        </TabsContent>
-
-        {/* Ticari Content */}
-        <TabsContent value="ticari" className="space-y-3 sm:space-y-5 md:space-y-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 md:gap-8">
-            <div className="space-y-2 sm:space-y-4 md:space-y-6">
+            {/* Col 2 - Price and Area (horizontal groups) */}
+            <div className="space-y-5">
+              <div>
+                <Label className="font-headings mb-0.5 sm:mb-1 block text-xs sm:text-sm font-medium">Fiyat Aralığı</Label>
+                <div className="grid grid-cols-2 gap-1 sm:gap-2">
+                  <Input type="text" placeholder="Min TL" value={minPrice} onChange={handleMinPriceChange} className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 pl-2 text-xs sm:text-sm" />
+                  <Input type="text" placeholder="Max TL" value={maxPrice} onChange={handleMaxPriceChange} className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 pl-2 text-xs sm:text-sm" />
+                </div>
+              </div>
+              <div>
+                <Label className="font-headings mb-0.5 sm:mb-1 block text-xs sm:text-sm font-medium">Alan (m²)</Label>
+                <div className="grid grid-cols-2 gap-1 sm:gap-2">
+                  <Input type="number" placeholder="Min" value={minArea} onChange={(e) => setMinArea(e.target.value)} className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 pl-2 text-xs sm:text-sm" />
+                  <Input type="number" placeholder="Max" value={maxArea} onChange={(e) => setMaxArea(e.target.value)} className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 pl-2 text-xs sm:text-sm" />
+                </div>
+              </div>
+            </div>
+            {/* Col 3 - Selects + Search */}
+            <div className="grid grid-cols-2 gap-2">
+              {/* Konut Tipi */}
               <div className="relative">
-                <Label className="font-headings mb-1 sm:mb-2 md:mb-3 block text-xs sm:text-sm md:text-base font-medium">İlan Durumu</Label>
-                <Select value={saleStatus} onValueChange={setSaleStatus}>
-                  <SelectTrigger className="w-full py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm md:text-base">
-                    <SelectValue placeholder="İlan Durumu Seçin">
-                      {saleStatus === "sale" ? "Satılık" : "Kiralık"}
-                    </SelectValue>
+                <Label className="font-headings mb-0.5 sm:mb-1 block text-xs sm:text-sm font-medium">Konut Tipi</Label>
+                <Select value={konutType} onValueChange={setKonutType}>
+                  <SelectTrigger className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm">
+                    <SelectValue placeholder="Konut Tipi" />
                   </SelectTrigger>
-                  <SelectContent sideOffset={4} className="rounded-xl border border-gray-200">
+                  <SelectContent sideOffset={4} className="rounded-lg border border-gray-200">
+                    <SelectItem value="all">Tümü</SelectItem>
+                    <SelectItem value="daire">Daire</SelectItem>
+                    <SelectItem value="villa">Villa</SelectItem>
+                    <SelectItem value="mustakil">Müstakil Ev</SelectItem>
+                    <SelectItem value="bina">Bina</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* İlan Durumu */}
+              <div className="relative">
+                <Label className="font-headings mb-0.5 sm:mb-1 block text-xs sm:text-sm font-medium">İlan Durumu</Label>
+                <Select value={saleStatus} onValueChange={setSaleStatus}>
+                  <SelectTrigger className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm">
+                    <SelectValue placeholder="Durum" />
+                  </SelectTrigger>
+                  <SelectContent sideOffset={4} className="rounded-lg border border-gray-200">
                     <SelectItem value="sale">Satılık</SelectItem>
                     <SelectItem value="rent">Kiralık</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              
-              <div className="relative">
-                <Label className="font-headings mb-1 sm:mb-2 md:mb-3 block text-xs sm:text-sm md:text-base font-medium">İş Yeri Tipi</Label>
-                <Select>
-                  <SelectTrigger className="w-full py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm md:text-base">
-                    <SelectValue placeholder="İş Yeri Tipi Seçin" />
+              {/* Oda Sayısı */}
+              <div className="relative mt-3">
+                <Label className="font-headings mb-0.5 sm:mb-1 block text-xs sm:text-sm font-medium">Oda Sayısı</Label>
+                <Select value={roomCount} onValueChange={setRoomCount}>
+                  <SelectTrigger className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm">
+                    <SelectValue placeholder="Oda Sayısı" />
                   </SelectTrigger>
-                  <SelectContent sideOffset={4} className="rounded-xl border border-gray-200">
+                  <SelectContent sideOffset={4} className="rounded-lg border border-gray-200">
+                    <SelectItem value="all">Tümü</SelectItem>
+                    <SelectItem value="1+0">1+0</SelectItem>
+                    <SelectItem value="1+1">1+1</SelectItem>
+                    <SelectItem value="2+1">2+1</SelectItem>
+                    <SelectItem value="3+1">3+1</SelectItem>
+                    <SelectItem value="4+1">4+1</SelectItem>
+                    <SelectItem value="5+1">5+1 ve üzeri</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* Ara butonu */}
+              <div className="relative mt-3">
+                <Label className="invisible mb-0.5 block text-xs sm:text-sm">Ara</Label>
+                <Button size="sm" className="w-full h-9 font-headings px-3 text-xs sm:text-sm font-medium rounded-md shadow-md hover:shadow-lg transition-all duration-300 bg-primary hover:bg-primary/90 group" onClick={() => {
+                  const params = new URLSearchParams();
+                  if (minPrice) params.append('minPrice', getUnformattedPrice(minPrice));
+                  if (maxPrice) params.append('maxPrice', getUnformattedPrice(maxPrice));
+                  if (minArea) params.append('minArea', minArea);
+                  if (maxArea) params.append('maxArea', maxArea);
+                  if (roomCount && roomCount !== 'all') params.append('roomCount', roomCount);
+                  if (konutType && konutType !== 'all') params.append('konutType', konutType);
+                  if (saleStatus) params.append('listingStatus', saleStatus === 'sale' ? 'satilik' : 'kiralik');
+                  if (selectedProvince) params.append('province', selectedProvince);
+                  if (selectedDistrict) params.append('district', selectedDistrict);
+                  if (selectedNeighborhood) params.append('neighborhood', selectedNeighborhood);
+                  router.push(`/ilanlar/konut?${params.toString()}`);
+                }}>
+                  <Search className="mr-1 group-hover:scale-110 transition-transform duration-300" size={12} /> Ara
+                </Button>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Ticari Content */}
+        <TabsContent value="ticari" className="space-y-2 sm:space-y-3 md:space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-2 md:gap-4">
+            {/* Col 1 - Address */}
+            <div className="space-y-1">
+              <div>
+                <Label className="font-headings mb-0.5 sm:mb-1 block text-xs sm:text-sm font-medium">Adres</Label>
+                <div className="flex flex-col gap-1">
+                  <Select defaultValue="tokat">
+                    <SelectTrigger className="w-full py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent sideOffset={4} className="rounded-lg border border-gray-200">
+                      <SelectItem value="tokat">Tokat</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={selectedDistrict} onValueChange={handleDistrictChange}>
+                    <SelectTrigger className="w-full py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm">
+                      <SelectValue placeholder="İlçe Seçin" />
+                    </SelectTrigger>
+                    <SelectContent sideOffset={4} className="rounded-lg border border-gray-200">
+                      <SelectItem value="merkez">Merkez</SelectItem>
+                      <SelectItem value="almus">Almus</SelectItem>
+                      <SelectItem value="artova">Artova</SelectItem>
+                      <SelectItem value="basciftlik">Başçiftlik</SelectItem>
+                      <SelectItem value="erbaa">Erbaa</SelectItem>
+                      <SelectItem value="niksar">Niksar</SelectItem>
+                      <SelectItem value="pazar">Pazar</SelectItem>
+                      <SelectItem value="resadiye">Reşadiye</SelectItem>
+                      <SelectItem value="sulusaray">Sulusaray</SelectItem>
+                      <SelectItem value="turhal">Turhal</SelectItem>
+                      <SelectItem value="yesilyurt">Yeşilyurt</SelectItem>
+                      <SelectItem value="zile">Zile</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <Select 
+                  value={selectedNeighborhood} 
+                  onValueChange={setSelectedNeighborhood}
+                  disabled={!selectedDistrict}
+                >
+                  <SelectTrigger className="w-full py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm">
+                    <SelectValue placeholder={selectedDistrict ? "Mahalle/Köy" : "İlçe Seçin"} />
+                  </SelectTrigger>
+                  <SelectContent sideOffset={4} className="rounded-lg border border-gray-200 max-h-[200px]">
+                    {selectedDistrict && (
+                      <>
+                        {getNeighborhoods(selectedDistrict).mahalle && getNeighborhoods(selectedDistrict).mahalle.length > 0 && (
+                          <>
+                            <div className="px-2 py-1.5 text-sm font-semibold bg-yellow-100 text-yellow-800">Mahalleler</div>
+                            {getNeighborhoods(selectedDistrict).mahalle.map((neighborhood: Neighborhood) => (
+                              <SelectItem key={neighborhood.value} value={neighborhood.value}>
+                                {neighborhood.label}
+                              </SelectItem>
+                            ))}
+                          </>
+                        )}
+                        {getNeighborhoods(selectedDistrict).koy && getNeighborhoods(selectedDistrict).koy.length > 0 && (
+                          <>
+                            <div className="px-2 py-1.5 text-sm font-semibold bg-yellow-100 text-yellow-800 mt-1">Köyler</div>
+                            {getNeighborhoods(selectedDistrict).koy.map((koy: Neighborhood) => (
+                              <SelectItem key={koy.value} value={koy.value}>
+                                {koy.label}
+                              </SelectItem>
+                            ))}
+                          </>
+                        )}
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {/* Col 2 - Price + Area */}
+            <div className="space-y-5">
+              <div>
+                <Label className="font-headings mb-0.5 sm:mb-1 block text-xs sm:text-sm font-medium">Fiyat Aralığı</Label>
+                <div className="grid grid-cols-2 gap-1 sm:gap-2">
+                  <Input type="text" placeholder="Min TL" onChange={handleMinPriceChange} value={minPrice} className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 pl-2 text-xs sm:text-sm" />
+                  <Input type="text" placeholder="Max TL" onChange={handleMaxPriceChange} value={maxPrice} className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 pl-2 text-xs sm:text-sm" />
+                </div>
+              </div>
+              <div>
+                <Label className="font-headings mb-0.5 sm:mb-1 block text-xs sm:text-sm font-medium">Alan (m²)</Label>
+                <div className="grid grid-cols-2 gap-1 sm:gap-2">
+                  <Input type="number" placeholder="Min" value={minArea} onChange={(e) => setMinArea(e.target.value)} className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 pl-2 text-xs sm:text-sm" />
+                  <Input type="number" placeholder="Max" value={maxArea} onChange={(e) => setMaxArea(e.target.value)} className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 pl-2 text-xs sm:text-sm" />
+                </div>
+              </div>
+            </div>
+            {/* Col 3 - Selects + Search */}
+            <div className="grid grid-cols-2 gap-2">
+              {/* İş Yeri Tipi */}
+              <div className="relative">
+                <Label className="font-headings mb-0.5 sm:mb-1 block text-xs sm:text-sm font-medium">İş Yeri Tipi</Label>
+                <Select value={ticariType} onValueChange={setTicariType}>
+                  <SelectTrigger className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm">
+                    <SelectValue placeholder="İş Yeri Tipi" />
+                  </SelectTrigger>
+                  <SelectContent sideOffset={4} className="rounded-lg border border-gray-200">
                     <SelectItem value="all">Tümü</SelectItem>
                     <SelectItem value="dukkan">Dükkan</SelectItem>
                     <SelectItem value="depo">Depo</SelectItem>
@@ -587,54 +624,27 @@ const FilterArea = () => {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            
-            <div className="space-y-2 sm:space-y-4 md:space-y-6">
-              <div>
-                <Label className="font-headings mb-1 sm:mb-2 md:mb-3 block text-xs sm:text-sm md:text-base font-medium">Fiyat Aralığı</Label>
-                <div className="grid grid-cols-2 gap-1 sm:gap-2 md:gap-4">
-                  <Input 
-                    type="text" 
-                    placeholder="Min TL" 
-                    onChange={handleMinPriceChange}
-                    value={minPrice}
-                    className="py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all pl-2 sm:pl-3 md:pl-4 text-xs sm:text-sm md:text-base"
-                  />
-                  <Input 
-                    type="text" 
-                    placeholder="Max TL" 
-                    onChange={handleMaxPriceChange}
-                    value={maxPrice}
-                    className="py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all pl-2 sm:pl-3 md:pl-4 text-xs sm:text-sm md:text-base"
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <Label className="font-headings mb-1 sm:mb-2 md:mb-3 block text-xs sm:text-sm md:text-base font-medium">Alan (m²)</Label>
-                <div className="grid grid-cols-2 gap-1 sm:gap-2 md:gap-4">
-                  <Input 
-                    type="text" 
-                    placeholder="Min m²" 
-                    className="py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all pl-2 sm:pl-3 md:pl-4 text-xs sm:text-sm md:text-base"
-                  />
-                  <Input 
-                    type="text" 
-                    placeholder="Max m²" 
-                    className="py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all pl-2 sm:pl-3 md:pl-4 text-xs sm:text-sm md:text-base"
-                  />
-                </div>
-              </div>
-            </div>
-            
-            <div className="space-y-2 sm:space-y-4 md:space-y-6">
+              {/* İlan Durumu */}
               <div className="relative">
-                <Label className="font-headings mb-1 sm:mb-2 md:mb-3 block text-xs sm:text-sm md:text-base font-medium">Oda Sayısı</Label>
-                <Select>
-                  <SelectTrigger className="w-full py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm md:text-base">
-                    <SelectValue placeholder="Oda Sayısı Seçin" />
+                <Label className="font-headings mb-0.5 sm:mb-1 block text-xs sm:text-sm font-medium">İlan Durumu</Label>
+                <Select value={saleStatus} onValueChange={setSaleStatus}>
+                  <SelectTrigger className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm">
+                    <SelectValue placeholder="Durum" />
                   </SelectTrigger>
-                  <SelectContent sideOffset={4} className="rounded-xl border border-gray-200">
+                  <SelectContent sideOffset={4} className="rounded-lg border border-gray-200">
+                    <SelectItem value="sale">Satılık</SelectItem>
+                    <SelectItem value="rent">Kiralık</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* Oda Sayısı */}
+              <div className="relative mt-3">
+                <Label className="font-headings mb-0.5 sm:mb-1 block text-xs sm:text-sm font-medium">Oda Sayısı</Label>
+                <Select value={roomCount} onValueChange={setRoomCount}>
+                  <SelectTrigger className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm">
+                    <SelectValue placeholder="Oda Sayısı" />
+                  </SelectTrigger>
+                  <SelectContent sideOffset={4} className="rounded-lg border border-gray-200">
                     <SelectItem value="all">Tümü</SelectItem>
                     <SelectItem value="1">1</SelectItem>
                     <SelectItem value="2">2</SelectItem>
@@ -644,23 +654,50 @@ const FilterArea = () => {
                   </SelectContent>
                 </Select>
               </div>
-              
-              <div className="relative">
-                <Label className="font-headings mb-1 sm:mb-2 md:mb-3 block text-xs sm:text-sm md:text-base font-medium">İl/İlçe/Mahalle-Köy</Label>
-                <div className="grid grid-cols-3 gap-1 sm:gap-1 md:gap-2">
+              {/* Ara butonu */}
+              <div className="relative mt-3">
+                <Label className="invisible mb-0.5 block text-xs sm:text-sm">Ara</Label>
+                <Button size="sm" className="w-full h-9 font-headings px-3 text-xs sm:text-sm font-medium rounded-md shadow-md hover:shadow-lg transition-all duration-300 bg-primary hover:bg-primary/90 group" onClick={() => {
+                  const params = new URLSearchParams();
+                  if (minPrice) params.append('minPrice', getUnformattedPrice(minPrice));
+                  if (maxPrice) params.append('maxPrice', getUnformattedPrice(maxPrice));
+                  if (minArea) params.append('minArea', minArea);
+                  if (maxArea) params.append('maxArea', maxArea);
+                  if (saleStatus) params.append('listingStatus', saleStatus === 'sale' ? 'satilik' : 'kiralik');
+                  if (roomCount && roomCount !== 'all') params.append('roomCount', roomCount);
+                  if (ticariType && ticariType !== 'all') params.append('ticariType', ticariType);
+                  if (selectedDistrict) params.append('district', selectedDistrict);
+                  if (selectedNeighborhood) params.append('neighborhood', selectedNeighborhood);
+                  router.push(`/ilanlar/ticari?${params.toString()}`);
+                }}>
+                  <Search className="mr-1 group-hover:scale-110 transition-transform duration-300" size={12} /> Ara
+                </Button>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Arsa Content */}
+        <TabsContent value="arsa" className="space-y-2 sm:space-y-3 md:space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-2 md:gap-4">
+            {/* Col 1 - Address */}
+            <div className="space-y-1">
+              <div>
+                <Label className="font-headings mb-0.5 sm:mb-1 block text-xs sm:text-sm font-medium">Adres</Label>
+                <div className="flex flex-col gap-1">
                   <Select defaultValue="tokat">
-                    <SelectTrigger className="w-full py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm md:text-base">
+                    <SelectTrigger className="w-full py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent sideOffset={4} className="rounded-xl border border-gray-200">
+                    <SelectContent sideOffset={4} className="rounded-lg border border-gray-200">
                       <SelectItem value="tokat">Tokat</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select value={selectedDistrict} onValueChange={handleDistrictChange}>
-                    <SelectTrigger className="w-full py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm md:text-base">
+                    <SelectTrigger className="w-full py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm">
                       <SelectValue placeholder="İlçe Seçin" />
                     </SelectTrigger>
-                    <SelectContent sideOffset={4} className="rounded-xl border border-gray-200">
+                    <SelectContent sideOffset={4} className="rounded-lg border border-gray-200">
                       <SelectItem value="merkez">Merkez</SelectItem>
                       <SelectItem value="almus">Almus</SelectItem>
                       <SelectItem value="artova">Artova</SelectItem>
@@ -675,98 +712,74 @@ const FilterArea = () => {
                       <SelectItem value="zile">Zile</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Select 
-                    value={selectedNeighborhood} 
-                    onValueChange={setSelectedNeighborhood}
-                    disabled={!selectedDistrict}
-                  >
-                    <SelectTrigger className="w-full py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm md:text-base">
-                      <SelectValue placeholder={selectedDistrict ? "Mahalle/Köy" : "İlçe Seçin"} />
-                    </SelectTrigger>
-                    <SelectContent sideOffset={4} className="rounded-xl border border-gray-200 max-h-[200px] sm:max-h-[250px] md:max-h-[300px]">
-                      {selectedDistrict && (
-                        <>
-                          {getNeighborhoods(selectedDistrict).mahalle && getNeighborhoods(selectedDistrict).mahalle.length > 0 && (
-                            <>
-                              <div className="px-2 py-1.5 text-sm font-semibold bg-yellow-100 text-yellow-800">Mahalleler</div>
-                              {getNeighborhoods(selectedDistrict).mahalle.map((neighborhood: Neighborhood) => (
-                                <SelectItem key={neighborhood.value} value={neighborhood.value}>
-                                  {neighborhood.label}
-                                </SelectItem>
-                              ))}
-                            </>
-                          )}
-                          
-                          {getNeighborhoods(selectedDistrict).koy && getNeighborhoods(selectedDistrict).koy.length > 0 && (
-                            <>
-                              <div className="px-2 py-1.5 text-sm font-semibold bg-yellow-100 text-yellow-800 mt-1">Köyler</div>
-                              {getNeighborhoods(selectedDistrict).koy.map((koy: Neighborhood) => (
-                                <SelectItem key={koy.value} value={koy.value}>
-                                  {koy.label}
-                                </SelectItem>
-                              ))}
-                            </>
-                          )}
-                        </>
-                      )}
-                    </SelectContent>
-                  </Select>
                 </div>
               </div>
-            </div>
-          </div>
-          
-          <div className="flex justify-center mt-2 sm:mt-5 md:mt-10">
-            <Button 
-              size="sm"
-              className="font-headings px-4 sm:px-6 md:px-10 py-2 sm:py-4 md:py-7 text-sm sm:text-base md:text-lg font-medium rounded-md sm:rounded-lg md:rounded-xl shadow-lg hover:shadow-xl transition-all duration-500 bg-primary hover:bg-primary/90 group"
-              onClick={() => {
-                const params = new URLSearchParams();
-                
-                if (minPrice) params.append('minPrice', getUnformattedPrice(minPrice));
-                if (maxPrice) params.append('maxPrice', getUnformattedPrice(maxPrice));
-                if (minArea) params.append('minArea', minArea);
-                if (maxArea) params.append('maxArea', maxArea);
-                if (saleStatus) params.append('listingStatus', saleStatus === 'sale' ? 'satilik' : 'kiralik');
-                if (selectedDistrict) params.append('district', selectedDistrict);
-                if (selectedNeighborhood) params.append('neighborhood', selectedNeighborhood);
-                
-                router.push(`/ilanlar/ticari?${params.toString()}`);
-              }}
-            >
-              <Search className="mr-1.5 sm:mr-2 md:mr-3 group-hover:scale-110 transition-transform duration-300" size={14} />
-              Ara
-              <ArrowRight className="ml-1.5 sm:ml-2 opacity-100 sm:opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" size={12} />
-            </Button>
-          </div>
-        </TabsContent>
-
-        {/* Arsa Content */}
-        <TabsContent value="arsa" className="space-y-3 sm:space-y-5 md:space-y-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 md:gap-8">
-            <div className="space-y-2 sm:space-y-4 md:space-y-6">
-              <div className="relative">
-                <Label className="font-headings mb-1 sm:mb-2 md:mb-3 block text-xs sm:text-sm md:text-base font-medium">İlan Durumu</Label>
-                <Select value={saleStatus} onValueChange={setSaleStatus}>
-                  <SelectTrigger className="w-full py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm md:text-base">
-                    <SelectValue placeholder="İlan Durumu Seçin">
-                      {saleStatus === "sale" ? "Satılık" : "Kiralık"}
-                    </SelectValue>
+              <div>
+                <Select 
+                  value={selectedNeighborhood} 
+                  onValueChange={setSelectedNeighborhood}
+                  disabled={!selectedDistrict}
+                >
+                  <SelectTrigger className="w-full py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm">
+                    <SelectValue placeholder={selectedDistrict ? "Mahalle/Köy" : "İlçe Seçin"} />
                   </SelectTrigger>
-                  <SelectContent sideOffset={4} className="rounded-xl border border-gray-200">
-                    <SelectItem value="sale">Satılık</SelectItem>
-                    <SelectItem value="rent">Kiralık</SelectItem>
+                  <SelectContent sideOffset={4} className="rounded-lg border border-gray-200 max-h-[200px]">
+                    {selectedDistrict && (
+                      <>
+                        {getNeighborhoods(selectedDistrict).mahalle && getNeighborhoods(selectedDistrict).mahalle.length > 0 && (
+                          <>
+                            <div className="px-2 py-1.5 text-sm font-semibold bg-yellow-100 text-yellow-800">Mahalleler</div>
+                            {getNeighborhoods(selectedDistrict).mahalle.map((neighborhood: Neighborhood) => (
+                              <SelectItem key={neighborhood.value} value={neighborhood.value}>
+                                {neighborhood.label}
+                              </SelectItem>
+                            ))}
+                          </>
+                        )}
+                        
+                        {getNeighborhoods(selectedDistrict).koy && getNeighborhoods(selectedDistrict).koy.length > 0 && (
+                          <>
+                            <div className="px-2 py-1.5 text-sm font-semibold bg-yellow-100 text-yellow-800 mt-1">Köyler</div>
+                            {getNeighborhoods(selectedDistrict).koy.map((koy: Neighborhood) => (
+                              <SelectItem key={koy.value} value={koy.value}>
+                                {koy.label}
+                              </SelectItem>
+                            ))}
+                          </>
+                        )}
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
-              
+            </div>
+            {/* Col 2 - Price + Area */}
+            <div className="space-y-5">
+              <div>
+                <Label className="font-headings mb-0.5 sm:mb-1 block text-xs sm:text-sm font-medium">Fiyat Aralığı</Label>
+                <div className="grid grid-cols-2 gap-1 sm:gap-2">
+                  <Input type="text" placeholder="Min TL" onChange={handleMinPriceChange} value={minPrice} className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 pl-2 text-xs sm:text-sm" />
+                  <Input type="text" placeholder="Max TL" onChange={handleMaxPriceChange} value={maxPrice} className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 pl-2 text-xs sm:text-sm" />
+                </div>
+              </div>
+              <div>
+                <Label className="font-headings mb-0.5 sm:mb-1 block text-xs sm:text-sm font-medium">Alan (m²)</Label>
+                <div className="grid grid-cols-2 gap-1 sm:gap-2">
+                  <Input type="number" placeholder="Min" value={minArea} onChange={(e) => setMinArea(e.target.value)} className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 pl-2 text-xs sm:text-sm" />
+                  <Input type="number" placeholder="Max" value={maxArea} onChange={(e) => setMaxArea(e.target.value)} className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 pl-2 text-xs sm:text-sm" />
+                </div>
+              </div>
+            </div>
+            {/* Col 3 - Selects + Search */}
+            <div className="grid grid-cols-2 gap-2">
+              {/* Arsa Tipi + İlan Durumu */}
               <div className="relative">
-                <Label className="font-headings mb-1 sm:mb-2 md:mb-3 block text-xs sm:text-sm md:text-base font-medium">Arsa Tipi</Label>
-                <Select>
-                  <SelectTrigger className="w-full py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm md:text-base">
-                    <SelectValue placeholder="Arsa Tipi Seçin" />
+                <Label className="font-headings mb-0.5 sm:mb-1 block text-xs sm:text-sm font-medium">Arsa Tipi</Label>
+                <Select value={arsaType} onValueChange={setArsaType}>
+                  <SelectTrigger className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm">
+                    <SelectValue placeholder="Arsa Tipi" />
                   </SelectTrigger>
-                  <SelectContent sideOffset={4} className="rounded-xl border border-gray-200">
+                  <SelectContent sideOffset={4} className="rounded-lg border border-gray-200">
                     <SelectItem value="all">Tümü</SelectItem>
                     <SelectItem value="tarla">Tarla</SelectItem>
                     <SelectItem value="bahce">Bahçe</SelectItem>
@@ -775,140 +788,37 @@ const FilterArea = () => {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            
-            <div className="space-y-2 sm:space-y-4 md:space-y-6">
-              <div>
-                <Label className="font-headings mb-1 sm:mb-2 md:mb-3 block text-xs sm:text-sm md:text-base font-medium">Fiyat Aralığı</Label>
-                <div className="grid grid-cols-2 gap-1 sm:gap-2 md:gap-4">
-                  <Input 
-                    type="text" 
-                    placeholder="Min TL" 
-                    onChange={handleMinPriceChange}
-                    value={minPrice}
-                    className="py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all pl-2 sm:pl-3 md:pl-4 text-xs sm:text-sm md:text-base"
-                  />
-                  <Input 
-                    type="text" 
-                    placeholder="Max TL" 
-                    onChange={handleMaxPriceChange}
-                    value={maxPrice}
-                    className="py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all pl-2 sm:pl-3 md:pl-4 text-xs sm:text-sm md:text-base"
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <Label className="font-headings mb-1 sm:mb-2 md:mb-3 block text-xs sm:text-sm md:text-base font-medium">Alan (m²)</Label>
-                <div className="grid grid-cols-2 gap-1 sm:gap-2 md:gap-4">
-                  <Input 
-                    type="text" 
-                    placeholder="Min m²" 
-                    className="py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all pl-2 sm:pl-3 md:pl-4 text-xs sm:text-sm md:text-base"
-                  />
-                  <Input 
-                    type="text" 
-                    placeholder="Max m²" 
-                    className="py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all pl-2 sm:pl-3 md:pl-4 text-xs sm:text-sm md:text-base"
-                  />
-                </div>
-              </div>
-            </div>
-            
-            <div className="space-y-2 sm:space-y-4 md:space-y-6">
               <div className="relative">
-                <Label className="font-headings mb-1 sm:mb-2 md:mb-3 block text-xs sm:text-sm md:text-base font-medium">İl/İlçe/Mahalle-Köy</Label>
-                <div className="grid grid-cols-3 gap-1 sm:gap-1 md:gap-2">
-                  <Select defaultValue="tokat">
-                    <SelectTrigger className="w-full py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm md:text-base">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent sideOffset={4} className="rounded-xl border border-gray-200">
-                      <SelectItem value="tokat">Tokat</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={selectedDistrict} onValueChange={handleDistrictChange}>
-                    <SelectTrigger className="w-full py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm md:text-base">
-                      <SelectValue placeholder="İlçe Seçin" />
-                    </SelectTrigger>
-                    <SelectContent sideOffset={4} className="rounded-xl border border-gray-200">
-                      <SelectItem value="merkez">Merkez</SelectItem>
-                      <SelectItem value="almus">Almus</SelectItem>
-                      <SelectItem value="artova">Artova</SelectItem>
-                      <SelectItem value="basciftlik">Başçiftlik</SelectItem>
-                      <SelectItem value="erbaa">Erbaa</SelectItem>
-                      <SelectItem value="niksar">Niksar</SelectItem>
-                      <SelectItem value="pazar">Pazar</SelectItem>
-                      <SelectItem value="resadiye">Reşadiye</SelectItem>
-                      <SelectItem value="sulusaray">Sulusaray</SelectItem>
-                      <SelectItem value="turhal">Turhal</SelectItem>
-                      <SelectItem value="yesilyurt">Yeşilyurt</SelectItem>
-                      <SelectItem value="zile">Zile</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select 
-                    value={selectedNeighborhood} 
-                    onValueChange={setSelectedNeighborhood}
-                    disabled={!selectedDistrict}
-                  >
-                    <SelectTrigger className="w-full py-1.5 sm:py-3 md:py-6 rounded-md sm:rounded-lg md:rounded-xl bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm md:text-base">
-                      <SelectValue placeholder={selectedDistrict ? "Mahalle/Köy" : "İlçe Seçin"} />
-                    </SelectTrigger>
-                    <SelectContent sideOffset={4} className="rounded-xl border border-gray-200 max-h-[200px] sm:max-h-[250px] md:max-h-[300px]">
-                      {selectedDistrict && (
-                        <>
-                          {getNeighborhoods(selectedDistrict).mahalle && getNeighborhoods(selectedDistrict).mahalle.length > 0 && (
-                            <>
-                              <div className="px-2 py-1.5 text-sm font-semibold bg-yellow-100 text-yellow-800">Mahalleler</div>
-                              {getNeighborhoods(selectedDistrict).mahalle.map((neighborhood: Neighborhood) => (
-                                <SelectItem key={neighborhood.value} value={neighborhood.value}>
-                                  {neighborhood.label}
-                                </SelectItem>
-                              ))}
-                            </>
-                          )}
-                          
-                          {getNeighborhoods(selectedDistrict).koy && getNeighborhoods(selectedDistrict).koy.length > 0 && (
-                            <>
-                              <div className="px-2 py-1.5 text-sm font-semibold bg-yellow-100 text-yellow-800 mt-1">Köyler</div>
-                              {getNeighborhoods(selectedDistrict).koy.map((koy: Neighborhood) => (
-                                <SelectItem key={koy.value} value={koy.value}>
-                                  {koy.label}
-                                </SelectItem>
-                              ))}
-                            </>
-                          )}
-                        </>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <Label className="font-headings mb-0.5 sm:mb-1 block text-xs sm:text-sm font-medium">İlan Durumu</Label>
+                <Select value={saleStatus} onValueChange={setSaleStatus}>
+                  <SelectTrigger className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 hover:border-primary/50 transition-all truncate text-xs sm:text-sm">
+                    <SelectValue placeholder="Durum" />
+                  </SelectTrigger>
+                  <SelectContent sideOffset={4} className="rounded-lg border border-gray-200">
+                    <SelectItem value="sale">Satılık</SelectItem>
+                    <SelectItem value="rent">Kiralık</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* Ara butonu 2. satırın tamamını kaplar */}
+              <div className="col-span-2 mt-3">
+                <Label className="invisible mb-0.5 block text-xs sm:text-sm">Ara</Label>
+                <Button size="sm" className="w-full h-9 font-headings px-3 text-xs sm:text-sm font-medium rounded-md shadow-md hover:shadow-lg transition-all duration-300 bg-primary hover:bg-primary/90 group" onClick={() => {
+                  const params = new URLSearchParams();
+                  if (minPrice) params.append('minPrice', getUnformattedPrice(minPrice));
+                  if (maxPrice) params.append('maxPrice', getUnformattedPrice(maxPrice));
+                  if (minArea) params.append('minArea', minArea);
+                  if (maxArea) params.append('maxArea', maxArea);
+                  if (saleStatus) params.append('listingStatus', saleStatus === 'sale' ? 'satilik' : 'kiralik');
+                  if (arsaType && arsaType !== 'all') params.append('arsaType', arsaType);
+                  if (selectedDistrict) params.append('district', selectedDistrict);
+                  if (selectedNeighborhood) params.append('neighborhood', selectedNeighborhood);
+                  router.push(`/ilanlar/arsa?${params.toString()}`);
+                }}>
+                  <Search className="mr-1 group-hover:scale-110 transition-transform duration-300" size={12} /> Ara
+                </Button>
               </div>
             </div>
-          </div>
-          
-          <div className="flex justify-center mt-2 sm:mt-5 md:mt-10">
-            <Button 
-              size="sm"
-              className="font-headings px-4 sm:px-6 md:px-10 py-2 sm:py-4 md:py-7 text-sm sm:text-base md:text-lg font-medium rounded-md sm:rounded-lg md:rounded-xl shadow-lg hover:shadow-xl transition-all duration-500 bg-primary hover:bg-primary/90 group"
-              onClick={() => {
-                const params = new URLSearchParams();
-                
-                if (minPrice) params.append('minPrice', getUnformattedPrice(minPrice));
-                if (maxPrice) params.append('maxPrice', getUnformattedPrice(maxPrice));
-                if (minArea) params.append('minArea', minArea);
-                if (maxArea) params.append('maxArea', maxArea);
-                if (saleStatus) params.append('listingStatus', saleStatus === 'sale' ? 'satilik' : 'kiralik');
-                if (selectedDistrict) params.append('district', selectedDistrict);
-                if (selectedNeighborhood) params.append('neighborhood', selectedNeighborhood);
-                
-                router.push(`/ilanlar/arsa?${params.toString()}`);
-              }}
-            >
-              <Search className="mr-1.5 sm:mr-2 md:mr-3 group-hover:scale-110 transition-transform duration-300" size={14} />
-              Ara
-              <ArrowRight className="ml-1.5 sm:ml-2 opacity-100 sm:opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" size={12} />
-            </Button>
           </div>
         </TabsContent>
       </Tabs>
