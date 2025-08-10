@@ -6,7 +6,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Image from "next/image";
 import Link from "next/link";
-import { MapPin, Bed, Expand, Car, Phone, MessageCircle, ChevronLeft, ChevronRight, ChevronDown, Share2, Copy, X } from "lucide-react";
+import { MapPin, Bed, Expand, Car, Phone, MessageCircle, ChevronLeft, ChevronRight, ChevronDown, Share2, Copy, X, Instagram } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Loading } from "@/components/ui/loading";
@@ -622,6 +622,38 @@ export default function ListingDetail() {
       ? `https://api.whatsapp.com/send?phone=${phone}&text=${encoded}`
       : `https://web.whatsapp.com/send?phone=${phone}&text=${encoded}`;
   };
+
+  // Instagram sharing: prefers Web Share API on capable devices, otherwise falls back to Instagram Direct on web
+  const getInstagramShareUrl = () => {
+    const text = `${listing?.title ?? ''} - ${getCurrentUrl()}`;
+    const encoded = encodeURIComponent(text);
+    return `https://www.instagram.com/direct/new/?text=${encoded}`;
+  };
+
+  const handleInstagramShare = async () => {
+    // On mobile devices prefer native share sheet if available
+    if (isMobileDevice() && typeof navigator !== 'undefined' && (navigator as any).share) {
+      try {
+        await (navigator as any).share({
+          title: listing?.title ?? 'Ceyhun Emlak',
+          text: listing?.title ?? '',
+          url: getCurrentUrl()
+        });
+        setShowShareMenu(false);
+        return;
+      } catch (_) {
+        // fall through to Instagram Direct link
+      }
+    }
+    // Desktop (and fallback): copy text for easy paste, then open Instagram Direct in a new tab
+    try {
+      await navigator.clipboard.writeText(`${listing?.title ?? ''} - ${getCurrentUrl()}`);
+      alert('Metin panoya kopyalandı. Instagram DM’e yapıştırabilirsiniz.');
+    } catch (_) {
+      // ignore if clipboard not available
+    }
+    window.open(getInstagramShareUrl(), '_blank', 'noopener,noreferrer');
+  };
   
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -1028,6 +1060,16 @@ export default function ListingDetail() {
                                 <p className="text-xs text-gray-500">Bağlantıyı WhatsApp ile paylaş</p>
                               </div>
                             </a>
+                            <button 
+                              onClick={handleInstagramShare}
+                              className="w-full flex items-center px-4 py-3 hover:bg-gray-100 transition-colors text-left"
+                            >
+                              <Instagram size={16} className="mr-2 text-[#E4405F]" />
+                              <div>
+                                <p className="font-medium">Instagram</p>
+                                <p className="text-xs text-gray-500">Instagram'da paylaş</p>
+                              </div>
+                            </button>
                           </div>
                         )}
                       </div>

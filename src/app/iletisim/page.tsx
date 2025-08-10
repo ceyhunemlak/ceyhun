@@ -394,9 +394,9 @@ export default function Iletisim() {
                 <h2 className="font-headings text-2xl sm:text-3xl md:text-4xl font-bold mb-6 sm:mb-8">
                   <span className="text-primary text-2xl sm:text-3xl md:text-4xl font-bold">Konum</span>
                 </h2>
-                <div className="bg-gray-200 rounded-2xl overflow-hidden shadow-lg">
+                <div className="bg-gray-200 rounded-2xl overflow-hidden shadow-lg relative">
                   <iframe
-                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3055.8234567890123!2d36.5544444!3d40.3166667!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNDDCsDE4JzYwLjAiTiAzNsKwMzMnMTYuMCJF!5e0!3m2!1str!2str!4v1234567890123!5m2!1str!2str"
+                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d12223.293889!2d36.5544444!3d40.3166667!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x408a7c8b8b8b8b8b%3A0x123456789abcdef!2zQWxpcGHFn2EgTWFoLiwgR2F6aXBhxZ9hIENhZC4gTm86My9BIENleXN1aXQgVG9rYXQvTWVya2V6!5e0!3m2!1str!2str!4v1234567890123!5m2!1str!2str"
                     width="100%"
                     height="400"
                     style={{ border: 0 }}
@@ -405,20 +405,79 @@ export default function Iletisim() {
                     referrerPolicy="no-referrer-when-downgrade"
                     className="w-full h-96 sm:h-[400px]"
                   ></iframe>
+                  
+                  {/* Map Legend */}
+                  <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-sm rounded-lg p-3 shadow-lg border">
+                    <h4 className="font-semibold text-sm mb-2 text-gray-800">Ofislerimiz</h4>
+                    <div className="space-y-2 text-xs">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                        <span className="text-gray-700">Çarşı Ofis</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                        <span className="text-gray-700">Karşıyaka Ofis</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Quick Links */}
+                  <div className="absolute bottom-4 right-4 space-y-2">
+                    <a 
+                      href="https://maps.google.com/?q=Alipaşa+Mahallesi,+Gazipaşa+Caddesi+3/A,+Tokat" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="block bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-2 rounded-lg transition-colors shadow-lg"
+                    >
+                      Çarşı Ofis Yol Tarifi
+                    </a>
+                    <a 
+                      href="https://maps.google.com/?q=Altıyüzevler+Mahallesi,+Vali+Ayhan+Çevik+Bulvarı,+Yunus+Emre+Sitesi+A+Blok,+Tokat" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="block bg-blue-500 hover:bg-blue-600 text-white text-xs px-3 py-2 rounded-lg transition-colors shadow-lg"
+                    >
+                      Karşıyaka Ofis Yol Tarifi
+                    </a>
+                  </div>
                 </div>
                 
-                <div className="mt-6 p-6 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl">
-                  <div className="flex items-start space-x-4">
-                    <div className="size-12 bg-primary/20 rounded-full flex items-center justify-center mt-1">
-                      <MapPin className="text-primary" size={24} />
+                <div className="mt-6 space-y-4">
+                  <div className="p-6 bg-gradient-to-br from-red-50 to-red-100 rounded-xl border border-red-200">
+                    <div className="flex items-start space-x-4">
+                      <div className="size-12 bg-red-500/20 rounded-full flex items-center justify-center mt-1">
+                        <MapPin className="text-red-600" size={24} />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-800 mb-2 flex items-center">
+                          <span className="w-3 h-3 bg-red-500 rounded-full mr-2"></span>
+                          Çarşı Ofis
+                        </h3>
+                        <p className="text-gray-600 leading-relaxed">
+                          Alipaşa Mah. Gazipaşa Cad.<br />
+                          No:3/A Ceysuit Tokat/Merkez<br />
+                          <span className="text-red-600 font-medium">60100 Tokat</span>
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-800 mb-2">Tam Adresimiz</h3>
-                      <p className="text-gray-600 leading-relaxed">
-                        Alipaşa Mahallesi, Gazipaşa Caddesi 3/A<br />
-                        Ceysuit, Tokat Merkez<br />
-                        <span className="text-primary font-medium">60100 Tokat</span>
-                      </p>
+                  </div>
+                  
+                  <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-200">
+                    <div className="flex items-start space-x-4">
+                      <div className="size-12 bg-blue-500/20 rounded-full flex items-center justify-center mt-1">
+                        <MapPin className="text-blue-600" size={24} />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-800 mb-2 flex items-center">
+                          <span className="w-3 h-3 bg-blue-500 rounded-full mr-2"></span>
+                          Karşıyaka Ofis
+                        </h3>
+                        <p className="text-gray-600 leading-relaxed">
+                          Altıyüzevler Mah. Vali Ayhan Çevik Bulv.<br />
+                          Yunus Emre Sit. A Blok Tokat/Merkez<br />
+                          <span className="text-blue-600 font-medium">60100 Tokat</span>
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
