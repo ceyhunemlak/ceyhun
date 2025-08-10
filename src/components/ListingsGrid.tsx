@@ -279,7 +279,7 @@ const ListingsGrid = () => {
                   <Link href={`/ilan/${createSlug(listing.title)}`} className="block w-full h-full">
                     <div className="listing-card bg-white overflow-hidden transition-all duration-500 h-full flex flex-col rounded-2xl card-hover">
                       {/* Image container */}
-                      <div className="relative h-64 w-full overflow-hidden flex-shrink-0 group rounded-t-2xl transform-gpu">
+                      <div className="relative aspect-[16/9] w-full overflow-hidden flex-shrink-0 group rounded-t-2xl transform-gpu">
                         <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
                           <div className="animate-pulse w-8 h-8 rounded-full bg-gray-300"></div>
                         </div>

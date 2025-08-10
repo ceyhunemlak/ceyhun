@@ -141,7 +141,7 @@ export default function FloatingContact({ defaultPhone }: FloatingContactProps) 
       
       <button
         onClick={handleTaxiClick}
-        className="bg-yellow-500 hover:bg-yellow-600 text-white p-2 rounded-full shadow-lg transform transition-transform hover:scale-110 flex items-center"
+        className="bg-yellow-500 hover:bg-yellow-600 text-white p-2 rounded-full shadow-lg transform transition-transform hover:scale-110 flex items-center justify-center"
         title="Taksi Çağır"
         aria-label="Taksi çağır"
       >

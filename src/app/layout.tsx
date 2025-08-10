@@ -25,9 +25,7 @@ const poppins = Poppins({
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
   viewportFit: "cover",
-  userScalable: false,
 };
 
 export const metadata: Metadata = {
@@ -62,24 +60,13 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
       </head>
       <body className="antialiased mobile-scroll-fix">
         {children}
         <FloatingContact defaultPhone="5323850420" />
         <Analytics />
         
-        {/* Script to load stylesheets asynchronously */}
-        <Script id="load-stylesheets" strategy="afterInteractive">
-          {`
-            const link = document.createElement('link');
-            link.rel = 'stylesheet';
-            link.href = 'https://cdn.jsdelivr.net/npm/swiper/swiper.min.css';
-            link.media = 'print';
-            link.onload = function() { this.media = 'all'; };
-            document.head.appendChild(link);
-          `}
-        </Script>
+        
         
         {/* Script to prevent text selection */}
         <Script id="prevent-text-selection" strategy="afterInteractive">
@@ -178,38 +165,7 @@ export default function RootLayout({
           `}
         </Script>
 
-        {/* Script to fix dropdown layout shift issue */}
-        <Script id="fix-dropdown-layout-shift" strategy="afterInteractive">
-          {`
-            // Get the original body width before any dropdowns open
-            const originalBodyWidth = document.body.clientWidth;
-            
-            // Create a MutationObserver to watch for dropdown/select menu openings
-            const observer = new MutationObserver((mutations) => {
-              // Check if any dropdown or select menu is open
-              const isDropdownOpen = document.querySelector('[data-state="open"][data-slot="dropdown-menu-content"], [data-state="open"][data-slot="select-content"], [data-state="open"][data-slot="dialog-content"]');
-              
-              if (isDropdownOpen) {
-                // When dropdown is open, set a fixed width to prevent layout shift
-                document.body.style.width = originalBodyWidth + 'px';
-                document.body.style.overflowX = 'hidden';
-                document.body.style.position = 'relative';
-              } else {
-                // When all dropdowns are closed, restore normal body width
-                document.body.style.width = '';
-                document.body.style.position = '';
-              }
-            });
-            
-            // Start observing the document with the configured parameters
-            observer.observe(document.body, { 
-              childList: true, 
-              subtree: true,
-              attributes: true,
-              attributeFilter: ['data-state']
-            });
-          `}
-        </Script>
+        
       </body>
     </html>
   );

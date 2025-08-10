@@ -16,7 +16,8 @@ import { FreeMode, Navigation } from "swiper/modules";
 import 'swiper/css';
 import 'swiper/css/free-mode';
 import 'swiper/css/navigation';
-import { formatLocationFromAddress } from "@/lib/utils";
+import { formatLocationFromAddress, createSlug } from "@/lib/utils";
+import RelatedListings from "@/components/RelatedListings";
 
 // Define listing type
 interface Listing {
@@ -1219,6 +1220,13 @@ export default function ListingDetail() {
         )}
       </main>
       
+      {/* Recommended Listings Section */}
+      {!isLoading && !error && listing && (
+        <div className="bg-gradient-to-b from-gray-50 to-white py-8 sm:py-12">
+          <RelatedListings baseId={listing.id} baseSlug={createSlug(listing.title)} />
+        </div>
+      )}
+
       <Footer />
     </div>
   );

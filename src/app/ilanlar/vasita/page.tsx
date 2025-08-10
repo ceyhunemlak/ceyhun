@@ -585,7 +585,7 @@ function VasitaListingsContent() {
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-600">Sırala:</span>
-                  <select 
+                   <select 
                     className="px-3 py-2 border border-gray-200 rounded-md text-sm focus:border-primary focus:ring-1 focus:ring-primary"
                     value={sortOption}
                     onChange={(e) => setSortOption(e.target.value as SortOption)}
@@ -624,7 +624,7 @@ function VasitaListingsContent() {
                     <Link key={listing.id} href={`/ilan/${createSlug(listing.title)}`} className="block h-full">
                       <Card className="listing-card h-full flex flex-col md:flex-row overflow-hidden transition-all duration-300 hover:shadow-lg transform-gpu hover:-translate-y-1 border border-gray-100 p-4">
                         {/* Image container - Left side */}
-                        <div className="relative aspect-[4/3] h-32 md:h-auto md:w-1/4 w-full overflow-hidden flex-shrink-0 group rounded-lg m-2">
+                        <div className="relative aspect-[16/9] md:aspect-[4/3] md:h-auto md:w-1/4 w-full overflow-hidden flex-shrink-0 group rounded-lg m-2">
                           <ImageGallery 
                             images={listing.images || [{id: 'default', url: listing.thumbnail_url || "/images/ce.png"}]} 
                             title={listing.title}

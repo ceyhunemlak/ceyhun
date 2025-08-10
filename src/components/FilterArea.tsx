@@ -300,7 +300,7 @@ const FilterArea = () => {
   
   return (
     <div 
-      className="w-full max-w-6xl mx-auto px-2 sm:px-3 md:px-4 py-2 sm:py-3 md:py-5 glass-effect rounded-lg sm:rounded-xl md:rounded-2xl shadow-md hover-shadow no-select filter-area border border-white/30 max-h-[70vh] sm:max-h-none overflow-y-auto touch-pan-y" 
+      className="w-full max-w-6xl mx-auto px-2 sm:px-3 md:px-4 py-2 sm:py-3 md:py-5 glass-effect rounded-lg sm:rounded-xl md:rounded-2xl shadow-md hover-shadow no-select filter-area border border-white/30" 
       style={{
         userSelect: 'none', 
         WebkitUserSelect: 'none',
@@ -426,15 +426,15 @@ const FilterArea = () => {
               <div>
                 <Label className="font-headings mb-0.5 sm:mb-1 block text-xs sm:text-sm font-medium">Fiyat Aralığı</Label>
                 <div className="grid grid-cols-2 gap-1 sm:gap-2">
-                  <Input type="text" placeholder="Min TL" value={minPrice} onChange={handleMinPriceChange} className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 pl-2 text-xs sm:text-sm" />
-                  <Input type="text" placeholder="Max TL" value={maxPrice} onChange={handleMaxPriceChange} className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 pl-2 text-xs sm:text-sm" />
+                  <Input type="text" inputMode="numeric" enterKeyHint="search" placeholder="Min TL" value={minPrice} onChange={handleMinPriceChange} className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 pl-2 text-xs sm:text-sm" />
+                  <Input type="text" inputMode="numeric" enterKeyHint="search" placeholder="Max TL" value={maxPrice} onChange={handleMaxPriceChange} className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 pl-2 text-xs sm:text-sm" />
                 </div>
               </div>
               <div>
                 <Label className="font-headings mb-0.5 sm:mb-1 block text-xs sm:text-sm font-medium">Alan (m²)</Label>
                 <div className="grid grid-cols-2 gap-1 sm:gap-2">
-                  <Input type="number" placeholder="Min" value={minArea} onChange={(e) => setMinArea(e.target.value)} className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 pl-2 text-xs sm:text-sm" />
-                  <Input type="number" placeholder="Max" value={maxArea} onChange={(e) => setMaxArea(e.target.value)} className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 pl-2 text-xs sm:text-sm" />
+                  <Input type="number" inputMode="numeric" enterKeyHint="search" placeholder="Min" value={minArea} onChange={(e) => setMinArea(e.target.value)} className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 pl-2 text-xs sm:text-sm" />
+                  <Input type="number" inputMode="numeric" enterKeyHint="search" placeholder="Max" value={maxArea} onChange={(e) => setMaxArea(e.target.value)} className="py-1 sm:py-1.5 md:py-2 rounded-md bg-gray-50 border border-gray-200 pl-2 text-xs sm:text-sm" />
                 </div>
               </div>
             </div>

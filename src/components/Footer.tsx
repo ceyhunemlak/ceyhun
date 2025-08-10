@@ -128,27 +128,27 @@ const Footer = () => {
             <h3 className="font-bold text-base sm:text-lg mb-3 sm:mb-4">Hizmetlerimiz</h3>
             <ul className="space-y-2 sm:space-y-3">
               <li>
-                <Link href="/hizmetler/satis" className="text-muted-foreground hover:text-primary transition-colors text-sm sm:text-base block py-1">
+                <Link href="/iletisim?subject=satilik#contact-form" className="text-muted-foreground hover:text-primary transition-colors text-sm sm:text-base block py-1">
                   Emlak Satış
                 </Link>
               </li>
               <li>
-                <Link href="/hizmetler/kiralama" className="text-muted-foreground hover:text-primary transition-colors text-sm sm:text-base block py-1">
+                <Link href="/iletisim?subject=kiralik#contact-form" className="text-muted-foreground hover:text-primary transition-colors text-sm sm:text-base block py-1">
                   Emlak Kiralama
                 </Link>
               </li>
               <li>
-                <Link href="/hizmetler/degerleme" className="text-muted-foreground hover:text-primary transition-colors text-sm sm:text-base block py-1">
+                <Link href="/iletisim?subject=degerlendirme#contact-form" className="text-muted-foreground hover:text-primary transition-colors text-sm sm:text-base block py-1">
                   Gayrimenkul Değerleme
                 </Link>
               </li>
               <li>
-                <Link href="/hizmetler/danismanlik" className="text-muted-foreground hover:text-primary transition-colors text-sm sm:text-base block py-1">
+                <Link href="/iletisim?subject=danismanlik#contact-form" className="text-muted-foreground hover:text-primary transition-colors text-sm sm:text-base block py-1">
                   Emlak Danışmanlığı
                 </Link>
               </li>
               <li>
-                <Link href="/hizmetler/vasita" className="text-muted-foreground hover:text-primary transition-colors text-sm sm:text-base block py-1">
+                <Link href="/iletisim?subject=otomotiv#contact-form" className="text-muted-foreground hover:text-primary transition-colors text-sm sm:text-base block py-1">
                   Vasıta Alım Satım
                 </Link>
               </li>
@@ -186,7 +186,7 @@ const Footer = () => {
               <li className="flex items-center">
                 <Clock size={16} className="mr-2 text-primary sm:size-[18px]" />
                 <span className="text-muted-foreground text-sm sm:text-base">
-                  Pazartesi - Cumartesi: 09:00 - 18:00
+                  Pazartesi - Cumartesi: 09:00 - 19:00
                 </span>
               </li>
             </ul>

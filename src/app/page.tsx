@@ -94,12 +94,11 @@ export default function Home() {
     <div className="min-h-screen flex flex-col">
       <Header />
       
-      {/* Hero Section with Parallax Effect */}
+      {/* Hero Section with Parallax Effect (disable fixed on small screens) */}
       <div 
-        className="w-full h-auto min-h-[100vh] pt-16 sm:pt-20 pb-16 sm:pb-20 bg-cover bg-center relative overflow-hidden flex items-center"
+        className="w-full h-auto min-h-[100vh] pt-16 sm:pt-20 pb-16 sm:pb-20 bg-cover bg-center md:bg-fixed relative overflow-hidden flex items-center"
         style={{
-          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('/images/ce.png')`,
-          backgroundAttachment: "fixed"
+          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('/images/ce.png')`
         }}
       >
         <div className="absolute inset-0 flex flex-col justify-center items-center px-3 sm:px-6 md:px-8 lg:px-12">

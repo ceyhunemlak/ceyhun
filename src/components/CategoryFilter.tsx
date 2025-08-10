@@ -770,6 +770,8 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
             <div className="relative">
               <Input 
                 type="text" 
+                inputMode="numeric" 
+                enterKeyHint="search"
                 placeholder="Min TL" 
                 value={minPrice}
                 onChange={(e) => handlePriceInput(e, setMinPrice)}
@@ -779,6 +781,8 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
             <div className="relative">
               <Input 
                 type="text" 
+                inputMode="numeric" 
+                enterKeyHint="search"
                 placeholder="Max TL" 
                 value={maxPrice}
                 onChange={(e) => handlePriceInput(e, setMaxPrice)}
@@ -794,8 +798,10 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
             <Label className="text-sm font-medium block mb-2">Alan (m²)</Label>
             <div className="grid grid-cols-2 gap-2">
               <div className="relative">
-                <Input 
-                  type="text" 
+              <Input 
+                type="text" 
+                inputMode="numeric" 
+                enterKeyHint="search"
                   placeholder="Min m²" 
                   value={minArea}
                   onChange={(e) => setMinArea(e.target.value)}
@@ -803,8 +809,10 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
                 />
               </div>
               <div className="relative">
-                <Input 
-                  type="text" 
+              <Input 
+                type="text" 
+                inputMode="numeric" 
+                enterKeyHint="search"
                   placeholder="Max m²" 
                   value={maxArea}
                   onChange={(e) => setMaxArea(e.target.value)}
@@ -970,6 +978,8 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
               <Label className="text-sm font-medium block mb-2">KAKS/Emsal</Label>
               <Input 
                 type="text" 
+                inputMode="numeric" 
+                enterKeyHint="search"
                 placeholder="KAKS/Emsal Değeri" 
                 value={kaks}
                 onChange={(e) => setKaks(e.target.value)}
@@ -987,6 +997,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
               <Label className="text-sm font-medium block mb-2">Marka</Label>
               <Input 
                 type="text" 
+                enterKeyHint="search"
                 placeholder="Marka" 
                 value={brand}
                 onChange={(e) => setBrand(e.target.value)}
@@ -999,6 +1010,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
               <Label className="text-sm font-medium block mb-2">Model</Label>
               <Input 
                 type="text" 
+                enterKeyHint="search"
                 placeholder="Model" 
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
@@ -1012,6 +1024,8 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
               <div className="grid grid-cols-2 gap-2">
                 <Input 
                   type="text" 
+                  inputMode="numeric" 
+                  enterKeyHint="search"
                   placeholder="Min Yıl" 
                   value={minYear}
                   onChange={(e) => setMinYear(e.target.value)}
@@ -1019,6 +1033,8 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
                 />
                 <Input 
                   type="text" 
+                  inputMode="numeric" 
+                  enterKeyHint="search"
                   placeholder="Max Yıl" 
                   value={maxYear}
                   onChange={(e) => setMaxYear(e.target.value)}
@@ -1033,6 +1049,8 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
               <div className="grid grid-cols-2 gap-2">
                 <Input 
                   type="text" 
+                  inputMode="numeric" 
+                  enterKeyHint="search"
                   placeholder="Min KM" 
                   value={minKm}
                   onChange={(e) => setMinKm(e.target.value)}
@@ -1040,6 +1058,8 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ category, initialFilter
                 />
                 <Input 
                   type="text" 
+                  inputMode="numeric" 
+                  enterKeyHint="search"
                   placeholder="Max KM" 
                   value={maxKm}
                   onChange={(e) => setMaxKm(e.target.value)}
