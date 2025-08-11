@@ -107,12 +107,9 @@ export default function Iletisim() {
       
       {/* Hero Section */}
       <div 
-        className="w-full h-auto min-h-[50vh] pt-16 sm:pt-20 pb-16 sm:pb-20 bg-cover bg-center md:bg-fixed relative overflow-hidden flex items-center"
-        style={{
-          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('/images/ce.png')`
-        }}
+        className="w-full h-auto min-h-[50vh] bg-gradient-to-r from-gray-800 to-black relative overflow-hidden flex items-center justify-center"
       >
-        <div className="absolute inset-0 flex flex-col justify-center items-center px-3 sm:px-6 md:px-8 lg:px-12">
+        <div className="w-full py-16 sm:py-20 flex flex-col justify-center items-center px-3 sm:px-6 md:px-8 lg:px-12">
           <div className="w-full max-w-4xl mx-auto text-center">
             <div className="animate-slide-up">
               <h1 className="font-headings text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 sm:mb-8">

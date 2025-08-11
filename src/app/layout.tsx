@@ -5,6 +5,7 @@ import Script from "next/script";
 import "swiper/css";
 import "swiper/css/autoplay";
 import FloatingContact from "@/components/FloatingContact";
+import BackToTop from "@/components/BackToTop";
 import { Analytics } from "@vercel/analytics/react";
 
 const inter = Inter({
@@ -64,6 +65,7 @@ export default function RootLayout({
       <body className="antialiased mobile-scroll-fix">
         {children}
         <FloatingContact defaultPhone="5323850420" />
+        <BackToTop />
         <Analytics />
         
         

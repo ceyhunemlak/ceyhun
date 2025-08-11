@@ -72,7 +72,7 @@ export default function FloatingContact({ defaultPhone }: FloatingContactProps) 
   };
 
   return (
-    <div className="fixed bottom-4 md:bottom-6 right-4 md:right-6 flex flex-row gap-2 z-50">
+    <div className="fixed bottom-4 md:bottom-6 left-4 md:left-6 flex flex-row gap-2 z-50">
       <div className="relative" ref={phoneDropdownRef}>
         <button
           onClick={() => setShowPhoneOptions(!showPhoneOptions)}
@@ -85,7 +85,7 @@ export default function FloatingContact({ defaultPhone }: FloatingContactProps) 
         </button>
         
         {showPhoneOptions && (
-          <div className="absolute bottom-full mb-2 right-0 bg-white rounded-lg shadow-lg p-2 min-w-[200px]">
+          <div className="absolute bottom-full mb-2 left-0 bg-white rounded-lg shadow-lg p-2 min-w-[200px]">
             <div className="font-medium text-gray-700 mb-1 px-2">Telefon</div>
             {phoneOptions.map((option, index) => (
               <button
@@ -118,7 +118,7 @@ export default function FloatingContact({ defaultPhone }: FloatingContactProps) 
         </button>
         
         {showWhatsAppOptions && (
-          <div className="absolute bottom-full mb-2 right-0 bg-white rounded-lg shadow-lg p-2 min-w-[200px]">
+          <div className="absolute bottom-full mb-2 left-0 bg-white rounded-lg shadow-lg p-2 min-w-[200px]">
             <div className="font-medium text-gray-700 mb-1 px-2">WhatsApp</div>
             {whatsappOptions.map((option, index) => (
               <button

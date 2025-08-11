@@ -26,10 +26,7 @@ export default function Hakkimizda() {
       
       {/* Hero Section */}
       <div 
-        className="w-full h-auto min-h-[70vh] pt-16 sm:pt-20 pb-16 sm:pb-20 bg-cover bg-center md:bg-fixed relative overflow-hidden flex items-center"
-        style={{
-          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('/images/ce2.png')`
-        }}
+        className="w-full h-auto min-h-[70vh] pt-16 sm:pt-20 pb-16 sm:pb-20 bg-gradient-to-r from-gray-800 to-black relative overflow-hidden flex items-center"
       >
         <div className="absolute inset-0 flex flex-col justify-center items-center px-3 sm:px-6 md:px-8 lg:px-12">
           <div className="w-full max-w-6xl mx-auto text-center">
